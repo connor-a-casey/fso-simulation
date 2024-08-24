@@ -1,6 +1,6 @@
 <div align="center">
     <h1>
-        <img src="res/readme/header.jpg">
+        <img src="repo/readme/header.jpg">
     </h1>
 </div>
 
