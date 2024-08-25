@@ -6,9 +6,9 @@ from astropy import units as u
 from astropy.coordinates import ICRS, CartesianRepresentation, EarthLocation, AltAz
 from sgp4.api import Satrec
 from sgp4.earth_gravity import wgs84
-from tqdm import tqdm  # Import tqdm for the progress bar
+from tqdm import tqdm
 
-# Define paths
+# define paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
 PARAMS_FILE = os.path.join(CURRENT_DIR, 'satelliteParameters.txt')
@@ -25,17 +25,17 @@ def read_parameters(file_path):
     return params
 
 def compute_passes():
-    # Read parameters
+    # read parameters
     params = read_parameters(PARAMS_FILE)
     
-    # Satellite parameters
+    # satellite parameters
     altitude_km = float(params['Altitude_km'])
     inclination_deg = float(params['Inclination_deg'])
     data_collection_rate_Tbit_per_day = float(params['Data_collection_rate_Tbit_per_day'])
     onboard_storage_Gbit = float(params['Onboard_storage_Gbit'])
     downlink_data_rate_Gbps = float(params['Downlink_data_rate_Gbps'])
 
-    # Ground station parameters
+    # ground station parameters
     ground_stations = [
         {
             'name': 'Tenerife',
@@ -54,26 +54,26 @@ def compute_passes():
         }
     ]
 
-    # Cloud and atmospheric parameters
+    # cloud and atmospheric parameters
     cloud_cover_percentage_threshold = float(params['Cloud_cover_percentage_threshold'])
     turbulence_strength_threshold = params['Turbulence_strength_threshold']
     link_margin_dB = float(params['Link_margin_dB'])
 
-    # Initialize scenario
-    start_time = datetime(2020, 5, 1, 11, 36, 0)
+    # initialize scenario
+    start_time = datetime(2023, 6, 1, 0, 0, 0)
     stop_time = start_time + timedelta(days=365)
-    sample_time = timedelta(seconds=10)  # Reduced sample time to increase granularity
+    sample_time = timedelta(seconds=60)  # reduced sample time to increase granularity
 
-    # Read TLE and initialize satellite
+    # read TLE and initialize satellite
     with open(TLE_FILE, 'r') as f:
         tle_lines = f.readlines()
     satellite = Satrec.twoline2rv(tle_lines[1], tle_lines[2])
 
     ground_station_passes = {gs['name']: [] for gs in ground_stations}
 
-    total_iterations = (stop_time - start_time) // sample_time  # Calculate total number of iterations
+    total_iterations = (stop_time - start_time) // sample_time  # calculate number of iterations
 
-    # Initialize the progress bar
+    # initialize the progress bar
     with tqdm(total=total_iterations) as pbar:
         current_time = start_time
         while current_time <= stop_time:
@@ -83,24 +83,24 @@ def compute_passes():
                 print(f"SGP4 error at {current_time}: error code {e}")
                 continue
 
-            # Create a CartesianRepresentation object
+            # create a cartesianrepresentation object
             cart = CartesianRepresentation(x=r[0]*u.km, y=r[1]*u.km, z=r[2]*u.km)
             sat_pos = ICRS(cart)
 
             for gs in ground_stations:
                 alt_az = sat_pos.transform_to(AltAz(obstime=Time(current_time), location=gs['location']))
-                el = alt_az.alt.deg  # Get elevation (altitude) in degrees
+                el = alt_az.alt.deg  # get elevation (altitude) in degrees
 
-                if el > 20:  # Satellite is visible and above 20° elevation
+                if el > 20:  # satellite is visible and above 20° elevation
                     ground_station_passes[gs['name']].append(current_time.strftime('%Y-%m-%d %H:%M:%S'))
 
             current_time += sample_time
-            pbar.update(1)  # Update the progress bar after each iteration
+            pbar.update(1)  # update the progress bar after each iteration
 
-    # Ensure output directory exists
+    # ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # Write passes to text files
+    # write to text files
     for gs_name, passes in ground_station_passes.items():
         file_path = os.path.join(OUTPUT_DIR, f'{gs_name}_passes.txt')
         with open(file_path, 'w') as f:
