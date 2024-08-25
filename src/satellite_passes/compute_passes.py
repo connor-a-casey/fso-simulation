@@ -6,6 +6,7 @@ from astropy import units as u
 from astropy.coordinates import ICRS, CartesianRepresentation, EarthLocation, AltAz
 from sgp4.api import Satrec
 from sgp4.earth_gravity import wgs84
+from tqdm import tqdm  # Import tqdm for the progress bar
 
 # Define paths
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -70,26 +71,31 @@ def compute_passes():
 
     ground_station_passes = {gs['name']: [] for gs in ground_stations}
 
-    current_time = start_time
-    while current_time <= stop_time:
-        jd, fr = Time(current_time).jd1, Time(current_time).jd2
-        e, r, v = satellite.sgp4(jd, fr)
-        if e != 0:
-            print(f"SGP4 error at {current_time}: error code {e}")
-            continue
+    total_iterations = (stop_time - start_time) // sample_time  # Calculate total number of iterations
 
-        # Create a CartesianRepresentation object
-        cart = CartesianRepresentation(x=r[0]*u.km, y=r[1]*u.km, z=r[2]*u.km)
-        sat_pos = ICRS(cart)
+    # Initialize the progress bar
+    with tqdm(total=total_iterations) as pbar:
+        current_time = start_time
+        while current_time <= stop_time:
+            jd, fr = Time(current_time).jd1, Time(current_time).jd2
+            e, r, v = satellite.sgp4(jd, fr)
+            if e != 0:
+                print(f"SGP4 error at {current_time}: error code {e}")
+                continue
 
-        for gs in ground_stations:
-            alt_az = sat_pos.transform_to(AltAz(obstime=Time(current_time), location=gs['location']))
-            el = alt_az.alt.deg  # Get elevation (altitude) in degrees
+            # Create a CartesianRepresentation object
+            cart = CartesianRepresentation(x=r[0]*u.km, y=r[1]*u.km, z=r[2]*u.km)
+            sat_pos = ICRS(cart)
 
-            if el > 20:  # Satellite is visible and above 20° elevation
-                ground_station_passes[gs['name']].append(current_time.strftime('%Y-%m-%d %H:%M:%S'))
+            for gs in ground_stations:
+                alt_az = sat_pos.transform_to(AltAz(obstime=Time(current_time), location=gs['location']))
+                el = alt_az.alt.deg  # Get elevation (altitude) in degrees
 
-        current_time += sample_time
+                if el > 20:  # Satellite is visible and above 20° elevation
+                    ground_station_passes[gs['name']].append(current_time.strftime('%Y-%m-%d %H:%M:%S'))
+
+            current_time += sample_time
+            pbar.update(1)  # Update the progress bar after each iteration
 
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
