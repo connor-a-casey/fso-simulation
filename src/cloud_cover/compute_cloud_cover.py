@@ -197,8 +197,8 @@ def process_grib_file(grib_file_path, station_bbox_df):
 
 def main():
     collection_id = 'EO:EUM:DAT:MSG:CLM'
-    start_date = datetime(2023, 10, 2)
-    end_date = datetime(2023, 10, 2)
+    start_date = datetime(2023, 6, 1)
+    end_date = datetime(2023, 6, 5)
 
     token = get_eumetsat_api_token()
     selected_collection, datastore = get_collection(token, collection_id)

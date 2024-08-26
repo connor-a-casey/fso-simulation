@@ -18,7 +18,7 @@ Acquisition_tracking_El_deg: +/-55
 
 # Ground Stations (large capacity and small capacity)
 # Format: Name, Latitude_deg, Longitude_deg, Altitude_m, Downlink_data_rate_Gbps, Tracking_accuracy_arcsec
-Ground_station_1: Tenerife, 28.299525, -16.5101, 2393, 10, 10
+Ground_station_1: Tenerife, 28.299525, 16.5101, 2393, 10, 10
 Ground_station_2: Nemea, 37.8167, 22.7167, 600, 5, 10
 Ground_station_3: Trauen, 52.9167, 9.6167, 110, 5, 10
 
