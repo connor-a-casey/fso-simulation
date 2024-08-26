@@ -14,6 +14,9 @@ from tqdm import tqdm
 warnings.filterwarnings("ignore", message="dlopen")
 warnings.filterwarnings("ignore", category=FutureWarning, message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated")
 
+# Remember to activate the conda environment before running this script:
+# Run the following command in your terminal:
+# conda activate cfgrib_env
 
 load_dotenv()
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
