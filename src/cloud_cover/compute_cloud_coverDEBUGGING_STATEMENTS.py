@@ -11,10 +11,8 @@ import time
 import eumdac
 from tqdm import tqdm
 
-# Ignore warnings related to the environment setup
 warnings.filterwarnings("ignore", message="dlopen")
 
-# Load environment variables
 load_dotenv()
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
@@ -24,6 +22,9 @@ TOKEN_URL = "https://api.eumetsat.int/token"
 MAX_RETRIES = 10
 RAW_GRIB_STAGING = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover', 'staging')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
+
+# List of required stations
+REQUIRED_STATIONS = ['Tenerife', 'Nemea', 'Trauen']
 
 def get_eumetsat_api_token():
     credentials = f"{CONSUMER_KEY}:{CONSUMER_SECRET}"
@@ -61,11 +62,11 @@ def get_collection(token, collection_id):
 def get_product_list(selected_collection, start_date, end_date):
     query = {'dtstart': start_date.isoformat(), 'dtend': end_date.isoformat()}
     if 'type' in selected_collection.search_options and selected_collection.search_options['type']:
-        query['type'] = 'MSGCLMK'  # Example value, adjust accordingly
+        query['type'] = 'MSGCLMK'
 
     products = selected_collection.search(**query)
     try:
-        print(f'Found Datasets: {len(products)} datasets for the given time range.')   
+        print(f'Found Datasets: {len(products)} datasets for the given time range.')
     except eumdac.collection.CollectionError as error:
         print(f"Error related to the collection: '{error.msg}'")
     except requests.exceptions.RequestException as error:
@@ -97,6 +98,15 @@ def read_ogs_data(file_path):
                 ogs_locations.append({'ogs_code': name, 'lon/lat': (longitude, latitude)})
     return pd.DataFrame(ogs_locations)
 
+def check_required_stations_included(station_bbox_df, required_stations):
+    included_stations = station_bbox_df['ogs_code'].tolist()
+    missing_stations = [station for station in required_stations if station not in included_stations]
+
+    if not missing_stations:
+        print("All required stations are included.")
+    else:
+        print(f"The following required stations are missing: {', '.join(missing_stations)}")
+
 def get_station_bbox(ogs_data):
     scan_radius = 0.1
     station_bbox_list = []
@@ -114,6 +124,23 @@ def get_station_bbox(ogs_data):
             'bbox': bbox
         })
     return pd.DataFrame(station_bbox_list)
+
+def remove_index_file(grib_file_path):
+    index_file_path = grib_file_path + '.idx'
+    if os.path.exists(index_file_path):
+        os.remove(index_file_path)
+        print(f"Removed index file: {index_file_path}")
+
+def inspect_grib_file(grib_file_path):
+    try:
+        dataset = xr.open_dataset(grib_file_path, engine='cfgrib')
+        print("Dataset metadata:")
+        print(dataset)
+        print("Dimensions:", dataset.dims)
+        print("Coordinates:", dataset.coords)
+        print("Variables:", list(dataset.variables.keys()))
+    except Exception as e:
+        print(f"Error inspecting GRIB file: {e}")
 
 def download_products(product_id, collection_id, datastore):
     selected_product = datastore.get_product(product_id=product_id, collection_id=collection_id)
@@ -150,16 +177,38 @@ def download_products(product_id, collection_id, datastore):
 
 def process_grib_file(grib_file_path, station_bbox_df):
     try:
+        # Remove existing index file
+        remove_index_file(grib_file_path)
+
+        # Inspect the file for metadata and coordinate info
+        inspect_grib_file(grib_file_path)
+
+        # Open the GRIB file
         dataset = xr.open_dataset(grib_file_path, engine='cfgrib')
-        cloud_data = dataset['tcc']  # Example: Total cloud cover ('tcc') might be the relevant variable
+
+        # Extract latitude, longitude, and cloud cover data
+        latitudes = dataset['latitude'].values
+        longitudes = dataset['longitude'].values
+        cloud_data = dataset['p260537'].values  
+
         results = []
 
         for _, station in station_bbox_df.iterrows():
             station_code = station['ogs_code']
             bbox = station['bbox']
-            # Extract the cloud cover data for the station's bounding box
-            cloud_cover = cloud_data.sel(latitude=slice(bbox[0], bbox[1]), longitude=slice(bbox[2], bbox[3])).mean().item()
-            results.append({'station_code': station_code, 'cloud_cover': cloud_cover})
+            
+            # Filter data within the bounding box
+            lat_mask = (latitudes >= bbox[0]) & (latitudes <= bbox[1])
+            lon_mask = (longitudes >= bbox[2]) & (longitudes <= bbox[3])
+            cloud_cover_within_bbox = cloud_data[lat_mask & lon_mask]
+            
+            if cloud_cover_within_bbox.size > 0:
+                mean_cloud_cover = cloud_cover_within_bbox.mean()
+                results.append({'station_code': station_code, 'cloud_cover': mean_cloud_cover})
+                print(f"Station {station_code}: Total Cloud Cover = {mean_cloud_cover}")
+            else:
+                print(f"Station {station_code}: No data within bounding box")
+                results.append({'station_code': station_code, 'cloud_cover': None})
 
         return pd.DataFrame(results)
     except Exception as e:
@@ -168,8 +217,8 @@ def process_grib_file(grib_file_path, station_bbox_df):
 
 def main():
     collection_id = 'EO:EUM:DAT:MSG:CLM'
-    start_date = datetime(2023, 6, 1)  # Set this to the desired day for testing
-    end_date = datetime(2023, 6, 1)    # Set the end date to the same as the start date
+    start_date = datetime(2023, 10, 2)
+    end_date = datetime(2023, 10, 2)
 
     token = get_eumetsat_api_token()
     selected_collection, datastore = get_collection(token, collection_id)
@@ -177,12 +226,15 @@ def main():
     ogs_data = read_ogs_data(os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt'))
     station_bbox_df = get_station_bbox(ogs_data)
 
+    # Check if all required stations are included
+    check_required_stations_included(station_bbox_df, REQUIRED_STATIONS)
+
     station_weather_dataframes = {row['ogs_code']: pd.DataFrame(columns=['time', 'cloud_cover']) for _, row in station_bbox_df.iterrows()}
 
     current_date = start_date
-    while current_date <= end_date:  # Process only one day
+    while current_date <= end_date:
         print(f"Processing data for {current_date.strftime('%Y-%m-%d')}")
-        product_list = get_product_list(selected_collection, current_date, current_date)  # Only query for this single day
+        product_list = get_product_list(selected_collection, current_date, current_date)
 
         for i, product_id in enumerate(tqdm(product_list, desc=f"Processing products for {current_date.strftime('%Y-%m-%d')}")):
             print(f"Parsing GRIB: {i+1}/{len(product_list)}")
@@ -193,8 +245,9 @@ def main():
                 
                 for _, row in df.iterrows():
                     station_code = row['station_code']
-                    station_weather_dataframes[station_code] = station_weather_dataframes[station_code].append(
-                        {'time': current_date, 'cloud_cover': row['cloud_cover']}, ignore_index=True)
+                    cloud_cover = row['cloud_cover']
+                    new_row = pd.DataFrame({'time': [current_date], 'cloud_cover': [cloud_cover]})
+                    station_weather_dataframes[station_code] = pd.concat([station_weather_dataframes[station_code], new_row], ignore_index=True)
 
             except Exception as e:
                 print(f"An error occurred: {type(e).__name__} - {e}")
