@@ -53,7 +53,7 @@ def compute_passes():
     satellite = load_satellite(TLE_FILE)
 
     start_time = datetime(2023, 6, 1, 0, 0, 0)
-    stop_time = start_time + timedelta(days=2)
+    stop_time = start_time + timedelta(days=365)
     sample_time = timedelta(minutes=1)
 
     ground_station_passes = {gs['name']: [] for gs in ground_stations}
