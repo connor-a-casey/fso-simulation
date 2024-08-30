@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from datetime import datetime
 from tqdm import tqdm
+import re
 
 # Function to read ground station parameters from the satelliteParameters.txt file
 def read_ground_station_parameters(filename):
@@ -67,15 +68,17 @@ def load_data(ground_station_name, project_root):
                 # Append parsed data
                 los_data.append({'Start': start_time, 'End': end_time})
 
-    # Load cloud cover data and parse 'time' as date
+    # Load cloud cover data and parse 'time' as date and time
     cloud_data = pd.read_csv(cloud_file, parse_dates=['time'])
 
-    # Load turbulence data (day and night)
+    # Load turbulence data (day and night) with numeric extraction
     with open(turbulence_day_file, 'r') as f:
-        turbulence_day = float(f.read().strip())
+        day_data = f.read().strip()
+        turbulence_day = float(re.search(r'[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?', day_data).group())
 
     with open(turbulence_night_file, 'r') as f:
-        turbulence_night = float(f.read().strip())
+        night_data = f.read().strip()
+        turbulence_night = float(re.search(r'[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?', night_data).group())
     
     return los_data, cloud_data, turbulence_day, turbulence_night
 
@@ -95,10 +98,10 @@ def combine_data(los_data, cloud_data, turbulence_data_day, turbulence_data_nigh
         # Select appropriate turbulence strength based on time of day
         turbulence_strength = turbulence_data_day if day_or_night == 'day' else turbulence_data_night
 
-        # Find corresponding cloud cover based on date
-        cloud_cover_row = cloud_data.loc[cloud_data['time'] == start_time.date()]
-        if not cloud_cover_row.empty:
-            cloud_cover = cloud_cover_row['cloud_cover'].values[0]
+        # Find corresponding cloud cover by matching closest timestamp
+        closest_cloud_cover = cloud_data.iloc[(cloud_data['time'] - start_time).abs().argsort()[:1]]
+        if not closest_cloud_cover.empty:
+            cloud_cover = closest_cloud_cover['cloud_cover'].values[0]
         else:
             cloud_cover = None
 
