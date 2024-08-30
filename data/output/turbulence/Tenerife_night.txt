@@ -1,1 +1,1 @@
-Turbulence strength during the night at Tenerife (28.299525, -16.5101): 1.9390389791615388e-12
+Turbulence strength during the night at Tenerife (28.299525, 16.5101): 1.906284833371143e-12
