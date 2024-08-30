@@ -11,13 +11,11 @@ import time
 import eumdac
 from tqdm import tqdm
 
+# Suppress specific warnings
 warnings.filterwarnings("ignore", message="dlopen")
 warnings.filterwarnings("ignore", category=FutureWarning, message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated")
 
-# Remember to activate the conda environment before running this script:
-# Run the following command in your terminal:
-# conda activate cfgrib_env
-
+# Load environment variables
 load_dotenv()
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
@@ -27,7 +25,6 @@ TOKEN_URL = "https://api.eumetsat.int/token"
 MAX_RETRIES = 10
 RAW_GRIB_STAGING = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover', 'staging')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
-
 
 def get_eumetsat_api_token():
     credentials = f"{CONSUMER_KEY}:{CONSUMER_SECRET}"
@@ -169,7 +166,7 @@ def process_grib_file(grib_file_path, station_bbox_df):
         # Extract latitude, longitude, and cloud cover data
         latitudes = dataset['latitude'].values
         longitudes = dataset['longitude'].values
-        cloud_data = dataset['p260537'].values  
+        cloud_data = dataset['p260537'].values  # Assuming 'p260537' is the correct variable for cloud cover
 
         results = []
 
@@ -206,6 +203,7 @@ def main():
     ogs_data = read_ogs_data(os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt'))
     station_bbox_df = get_station_bbox(ogs_data)
 
+    # Initialize a dictionary to store weather data for each station
     station_weather_dataframes = {row['ogs_code']: pd.DataFrame(columns=['time', 'cloud_cover']) for _, row in station_bbox_df.iterrows()}
 
     current_date = start_date
@@ -227,7 +225,6 @@ def main():
                     if not new_row.empty and not new_row.isna().all().all():
                         station_weather_dataframes[station_code] = pd.concat([station_weather_dataframes[station_code], new_row], ignore_index=True)
 
-
             except Exception as e:
                 print(f"An error occurred: {type(e).__name__} - {e}")
                 continue
@@ -235,7 +232,12 @@ def main():
         current_date += timedelta(days=1)
 
     for station_code, df in station_weather_dataframes.items():
-        df.to_csv(f"{OUTPUT_DIR}/{station_code}_eumetsat_{start_date.date()}_{end_date.date()}_df.csv", sep='\t')
+        # Ensure the correct order of columns
+        df = df[['time', 'cloud_cover']]
+        
+        # Save each DataFrame to a CSV file, using a comma as the separator
+        df.to_csv(f"{OUTPUT_DIR}/{station_code}_eumetsat_{start_date.date()}_{end_date.date()}_df.csv", sep=',', index=False)
 
 if __name__ == "__main__":
     main()
+
