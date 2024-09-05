@@ -1,4 +1,8 @@
-Start: 2023-06-01 05:37:00, End: 2023-06-01 16:03:00
-Start: 2023-06-02 05:37:00, End: 2023-06-02 16:03:00
-Start: 2023-06-03 05:37:00, End: 2023-06-03 16:04:00
-Start: 2023-06-04 05:37:00, End: 2023-06-04 16:04:00
+Start: 2023-06-01 05:58:56, End: 2023-06-01 06:00:35, Duration: 0:01:38.564422, Max Elevation: 21.50 degrees
+Start: 2023-06-01 16:31:13, End: 2023-06-01 16:36:06, Duration: 0:04:53.230274, Max Elevation: 59.33 degrees
+Start: 2023-06-02 05:44:23, End: 2023-06-02 05:48:14, Duration: 0:03:50.859379, Max Elevation: 32.43 degrees
+Start: 2023-06-02 16:18:06, End: 2023-06-02 16:22:17, Duration: 0:04:11.189505, Max Elevation: 36.80 degrees
+Start: 2023-06-03 05:30:28, End: 2023-06-03 05:35:12, Duration: 0:04:44.415154, Max Elevation: 51.46 degrees
+Start: 2023-06-03 16:05:26, End: 2023-06-03 16:08:01, Duration: 0:02:34.874154, Max Elevation: 24.13 degrees
+Start: 2023-06-04 05:16:48, End: 2023-06-04 05:21:51, Duration: 0:05:03.252469, Max Elevation: 84.26 degrees
+Start: 2023-06-04 17:26:23, End: 2023-06-04 17:28:00, Duration: 0:01:36.449165, Max Elevation: 21.41 degrees

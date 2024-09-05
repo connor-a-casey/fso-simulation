@@ -1,9 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from astropy.time import Time
-from astropy import units as u
-from astropy.coordinates import ICRS, CartesianRepresentation, EarthLocation, AltAz
-from sgp4.api import Satrec
+from skyfield.api import load, EarthSatellite, wgs84
 from tqdm import tqdm
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -11,7 +8,6 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
 PARAMS_FILE = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt')
 TLE_FILE = os.path.join(CURRENT_DIR, 'terra.tle')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'satellite_passes')
-
 
 def read_parameters(file_path):
     params = {}
@@ -22,7 +18,6 @@ def read_parameters(file_path):
                 params[key.strip()] = value.strip()
     return params
 
-
 def extract_ground_stations(params):
     ground_stations = []
     for i in range(1, 4):
@@ -31,72 +26,55 @@ def extract_ground_stations(params):
             station_data = params[key].split(',')
             ground_stations.append({
                 'name': station_data[0].strip(),
-                'location': EarthLocation(
-                    lat=float(station_data[1]) * u.deg,
-                    lon=float(station_data[2]) * u.deg,
-                    height=float(station_data[3]) * u.m
+                'location': wgs84.latlon(
+                    latitude_degrees=float(station_data[1]),
+                    longitude_degrees=float(station_data[2]),
+                    elevation_m=float(station_data[3])
                 ),
                 'downlink_data_rate_Gbps': float(station_data[4].strip())
             })
     return ground_stations
 
-
 def load_satellite(tle_file):
     with open(tle_file, 'r') as f:
         tle_lines = f.readlines()
-    return Satrec.twoline2rv(tle_lines[1], tle_lines[2])
-
+    satellite = EarthSatellite(tle_lines[1].strip(), tle_lines[2].strip(), "Terra", load.timescale())
+    return satellite
 
 def compute_passes():
     params = read_parameters(PARAMS_FILE)
     ground_stations = extract_ground_stations(params)
     satellite = load_satellite(TLE_FILE)
 
-    start_time = datetime(2023, 6, 1, 0, 0, 0)
-    stop_time = start_time + timedelta(days=4)
-    sample_time = timedelta(minutes=1)
+    ts = load.timescale()
+    start_time = ts.utc(2023, 6, 1)
+    end_time = ts.utc(2023, 6, 5)  # Extended to 5 days as per the output
+
+    elevation_threshold = 20  # degrees
+    min_pass_duration = timedelta(minutes=1)  # Only consider passes lasting longer than 1 minute
 
     ground_station_passes = {gs['name']: [] for gs in ground_stations}
-    current_passes = {gs['name']: None for gs in ground_stations}
 
-    total_iterations = int((stop_time - start_time) / sample_time)
+    for gs in tqdm(ground_stations, desc="Processing ground stations"):
+        observer = gs['location']
+        t, events = satellite.find_events(observer, start_time, end_time, altitude_degrees=elevation_threshold)
 
-    with tqdm(total=total_iterations) as pbar:
-        current_time = start_time
-        while current_time <= stop_time:
-            jd, fr = Time(current_time).jd1, Time(current_time).jd2
-            e, r, v = satellite.sgp4(jd, fr)
-
-            if e != 0:
-                print(f"SGP4 error at {current_time}: error code {e}")
-                current_time += sample_time
-                pbar.update(1)
-                continue
-
-            cart = CartesianRepresentation(x=r[0] * u.km, y=r[1] * u.km, z=r[2] * u.km)
-            sat_pos = ICRS(cart)
-
-            for gs in ground_stations:
-                alt_az = sat_pos.transform_to(AltAz(obstime=Time(current_time), location=gs['location']))
-                el = alt_az.alt.deg
-
-                if el > 20:  # Satellite is visible and above 20° elevation
-                    if current_passes[gs['name']] is None:
-                        current_passes[gs['name']] = {'start': current_time}
-                else:
-                    if current_passes[gs['name']] is not None:
-                        current_passes[gs['name']]['end'] = current_time - sample_time
-                        ground_station_passes[gs['name']].append(current_passes[gs['name']])
-                        current_passes[gs['name']] = None
-
-            current_time += sample_time
-            pbar.update(1)
-
-    # Close any open passes
-    for gs_name, current_pass in current_passes.items():
-        if current_pass is not None:
-            current_pass['end'] = stop_time
-            ground_station_passes[gs_name].append(current_pass)
+        current_pass = None
+        for ti, event in zip(t, events):
+            if event == 0:  # Rise
+                current_pass = {'start': ti.utc_datetime()}
+            elif event == 1:  # Culminate
+                if current_pass is not None:
+                    topocentric = (satellite - observer).at(ti)
+                    alt, az, distance = topocentric.altaz()
+                    current_pass['max_el'] = alt.degrees
+            elif event == 2:  # Set
+                if current_pass is not None:
+                    current_pass['end'] = ti.utc_datetime()
+                    current_pass['duration'] = current_pass['end'] - current_pass['start']
+                    if current_pass['duration'] >= min_pass_duration:
+                        ground_station_passes[gs['name']].append(current_pass)
+                    current_pass = None
 
     # Ensure output directory exists
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -106,13 +84,13 @@ def compute_passes():
         file_path = os.path.join(OUTPUT_DIR, f'{gs_name}_passes.txt')
         with open(file_path, 'w') as f:
             for pass_data in passes:
+                duration = pass_data['duration']
                 f.write(
                     f"Start: {pass_data['start'].strftime('%Y-%m-%d %H:%M:%S')}, "
-                    f"End: {pass_data['end'].strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"End: {pass_data['end'].strftime('%Y-%m-%d %H:%M:%S')}, "
+                    f"Duration: {duration}, "
+                    f"Max Elevation: {pass_data['max_el']:.2f} degrees\n"
                 )
-
-    print("Satellite passes computation completed and written to text files.")
-
 
 if __name__ == "__main__":
     compute_passes()
