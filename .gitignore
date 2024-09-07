@@ -2,3 +2,4 @@
 .venv/
 myenv/
 .env
+.DS_Store

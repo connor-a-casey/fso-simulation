@@ -10,11 +10,18 @@ import shutil
 import time
 import eumdac
 from tqdm import tqdm
+import concurrent.futures
 
-# Remember to activate the conda environment before running this script:
-# Run the following command in your terminal:
-# conda activate cfgrib_env
 
+# Function to check conda environment
+def check_conda_environment(expected_env="cfgrib_env"):
+    current_env = os.getenv('CONDA_DEFAULT_ENV')
+    if current_env != expected_env:
+        print(f"Error: You are not in the expected conda environment: {expected_env}. You are currently in: {current_env}. Exiting...")
+        exit(1)
+
+# Call the function at the beginning of the script
+check_conda_environment()
 
 # Suppress specific warnings
 warnings.filterwarnings("ignore", message="dlopen")
@@ -22,6 +29,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, message="The behavior 
 
 # Load environment variables
 load_dotenv()
+
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
 CONSUMER_KEY = os.getenv('CONSUMER_KEY')
@@ -30,6 +38,7 @@ TOKEN_URL = "https://api.eumetsat.int/token"
 MAX_RETRIES = 10
 RAW_GRIB_STAGING = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover', 'staging')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
+
 
 def get_eumetsat_api_token():
     credentials = f"{CONSUMER_KEY}:{CONSUMER_SECRET}"
@@ -51,6 +60,7 @@ def get_eumetsat_api_token():
     except Exception as err:
         print(f"An error occurred: {err}")
 
+
 def get_collection(token, collection_id):
     datastore = eumdac.DataStore(token)
     selected_collection = datastore.get_collection(collection_id)
@@ -63,6 +73,7 @@ def get_collection(token, collection_id):
     except requests.exceptions.RequestException as error:
         print(f"Unexpected error: {error}")
     return selected_collection, datastore
+
 
 def get_product_list(selected_collection, start_date, end_date):
     query = {'dtstart': start_date.isoformat(), 'dtend': end_date.isoformat()}
@@ -90,6 +101,7 @@ def get_product_list(selected_collection, start_date, end_date):
                 print(f"Unexpected error: {error}")
     return product_list
 
+
 def read_ogs_data(file_path):
     ogs_locations = []
     with open(file_path, 'r') as file:
@@ -103,8 +115,9 @@ def read_ogs_data(file_path):
                 ogs_locations.append({'ogs_code': name, 'lon/lat': (longitude, latitude)})
     return pd.DataFrame(ogs_locations)
 
+
 def get_station_bbox(ogs_data):
-    scan_radius = 0.1
+    scan_radius = 0.1  # Adjust this as needed for appropriate bounding box size
     station_bbox_list = []
     for index, row in ogs_data.iterrows():
         station_code = row['ogs_code']
@@ -121,18 +134,20 @@ def get_station_bbox(ogs_data):
         })
     return pd.DataFrame(station_bbox_list)
 
+
 def remove_index_file(grib_file_path):
     index_file_path = grib_file_path + '.idx'
     if os.path.exists(index_file_path):
         os.remove(index_file_path)
         print(f"Removed index file: {index_file_path}")
 
+
 def download_products(product_id, collection_id, datastore):
     selected_product = datastore.get_product(product_id=product_id, collection_id=collection_id)
     retries = 0
     grib_file_name = product_id + '.grb'
     grib_file_path = os.path.join(RAW_GRIB_STAGING, grib_file_name)
-    
+
     while retries < MAX_RETRIES:
         try:
             with selected_product.open(entry=grib_file_name) as fsrc, \
@@ -157,8 +172,9 @@ def download_products(product_id, collection_id, datastore):
                 retries += 1
             else:
                 print(f"Unexpected error: {error}")
-    
-    return grib_file_name
+
+    return grib_file_path
+
 
 def process_grib_file(grib_file_path, station_bbox_df):
     try:
@@ -168,39 +184,63 @@ def process_grib_file(grib_file_path, station_bbox_df):
         # Open the GRIB file
         dataset = xr.open_dataset(grib_file_path, engine='cfgrib')
 
-        # Extract latitude, longitude, and cloud cover data
+        # Extract time, latitude, longitude, and cloud cover data
+        time_values = dataset['time'].values
         latitudes = dataset['latitude'].values
         longitudes = dataset['longitude'].values
         cloud_data = dataset['p260537'].values  # Assuming 'p260537' is the correct variable for cloud cover
 
         results = []
 
+        # Ensure time_values is iterable (likely a 1D array)
+        if time_values.ndim == 0:
+            # If time is a single value, wrap it in a list
+            time_values = [time_values]
+        
         for _, station in station_bbox_df.iterrows():
             station_code = station['ogs_code']
             bbox = station['bbox']
-            
+
             # Filter data within the bounding box
             lat_mask = (latitudes >= bbox[0]) & (latitudes <= bbox[1])
             lon_mask = (longitudes >= bbox[2]) & (longitudes <= bbox[3])
             cloud_cover_within_bbox = cloud_data[lat_mask & lon_mask]
-            
+
             if cloud_cover_within_bbox.size > 0:
-                mean_cloud_cover = cloud_cover_within_bbox.mean()
-                results.append({'station_code': station_code, 'cloud_cover': mean_cloud_cover})
-                print(f"Station {station_code}: Total Cloud Cover = {mean_cloud_cover}")
+                # Calculate the average cloud cover within the bounding box for each timestamp
+                for t_idx, timestamp in enumerate(time_values):
+                    avg_cloud_cover = cloud_cover_within_bbox.mean()  # Take the mean value
+                    results.append({
+                        'station_code': station_code,
+                        'time': timestamp,  # Use the time value for each step
+                        'latitude': station['coord'][1],  # Use the station's coordinates
+                        'longitude': station['coord'][0],
+                        'cloud_cover': avg_cloud_cover
+                    })
             else:
                 print(f"Station {station_code}: No data within bounding box")
-                results.append({'station_code': station_code, 'cloud_cover': None})
 
         return pd.DataFrame(results)
     except Exception as e:
         print(f"Error processing GRIB file: {e}")
         return pd.DataFrame()
 
+
+
+def process_single_product(product_id, collection_id, datastore, station_bbox_df):
+    try:
+        grib_file_path = download_products(product_id, collection_id, datastore)
+        df = process_grib_file(grib_file_path, station_bbox_df)
+        return df
+    except Exception as e:
+        print(f"Error processing product {product_id}: {e}")
+        return pd.DataFrame()
+
+
 def main():
     collection_id = 'EO:EUM:DAT:MSG:CLM'
     start_date = datetime(2023, 6, 1)
-    end_date = datetime(2023, 6, 5)
+    end_date = datetime(2023, 6, 1)
 
     token = get_eumetsat_api_token()
     selected_collection, datastore = get_collection(token, collection_id)
@@ -209,39 +249,40 @@ def main():
     station_bbox_df = get_station_bbox(ogs_data)
 
     # Initialize a dictionary to store weather data for each station
-    station_weather_dataframes = {row['ogs_code']: pd.DataFrame(columns=['time', 'cloud_cover']) for _, row in station_bbox_df.iterrows()}
+    station_weather_dataframes = {row['ogs_code']: pd.DataFrame(columns=['time', 'latitude', 'longitude', 'cloud_cover']) for _, row in station_bbox_df.iterrows()}
 
     current_date = start_date
+    total_products_processed = 0
+
     while current_date <= end_date:
         print(f"Processing data for {current_date.strftime('%Y-%m-%d')}")
-        product_list = get_product_list(selected_collection, current_date, current_date)
+        product_list = get_product_list(selected_collection, current_date, current_date + timedelta(days=1))
 
-        for i, product_id in enumerate(tqdm(product_list, desc=f"Processing products for {current_date.strftime('%Y-%m-%d')}")):
-            print(f"Parsing GRIB: {i+1}/{len(product_list)}")
-            try:
-                grib_file_name = download_products(product_id, collection_id, datastore)
-                grib_file_path = os.path.join(RAW_GRIB_STAGING, grib_file_name)
-                df = process_grib_file(grib_file_path, station_bbox_df)
-                
-                for _, row in df.iterrows():
-                    station_code = row['station_code']
-                    cloud_cover = row['cloud_cover']
-                    new_row = pd.DataFrame({'time': [current_date], 'cloud_cover': [cloud_cover]})
-                    if not new_row.empty and not new_row.isna().all().all():
-                        station_weather_dataframes[station_code] = pd.concat([station_weather_dataframes[station_code], new_row], ignore_index=True)
+        # Use tqdm to track progress across the total number of datasets
+        with tqdm(total=len(product_list), desc="Processing datasets") as pbar:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                futures = []
+                for product_id in product_list:
+                    futures.append(executor.submit(process_single_product, product_id, collection_id, datastore, station_bbox_df))
 
-            except Exception as e:
-                print(f"An error occurred: {type(e).__name__} - {e}")
-                continue
+                for future in concurrent.futures.as_completed(futures):
+                    result_df = future.result()
+                    if result_df is not None and not result_df.empty:
+                        for station_code in station_weather_dataframes.keys():
+                            station_df = result_df[result_df['station_code'] == station_code]
+                            if not station_df.empty:
+                                station_weather_dataframes[station_code] = pd.concat([station_weather_dataframes[station_code], station_df], ignore_index=True)
+                    # Update the progress bar after each dataset is processed
+                    pbar.update(1)
 
         current_date += timedelta(days=1)
 
     for station_code, df in station_weather_dataframes.items():
         # Ensure the correct order of columns
-        df = df[['time', 'cloud_cover']]
-        
+        df = df[['time', 'latitude', 'longitude', 'cloud_cover']]
+
         # Save each DataFrame to a CSV file, using a comma as the separator
-        df.to_csv(f"{OUTPUT_DIR}/{station_code}_eumetsat_{start_date.date()}_{end_date.date()}_df.csv", sep=',', index=False)
+        df.to_csv(f"{OUTPUT_DIR}/{station_code}_eumetsat_{start_date.date()}_{end_date.date()}_detailed_df.csv", sep=',', index=False)
 
 if __name__ == "__main__":
     main()
