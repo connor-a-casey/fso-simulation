@@ -14,6 +14,8 @@ import concurrent.futures
 
 
 # Function to check conda environment
+# If not activated, then run the following:
+# # conda activate cfgrib_env
 def check_conda_environment(expected_env="cfgrib_env"):
     current_env = os.getenv('CONDA_DEFAULT_ENV')
     if current_env != expected_env:
@@ -240,7 +242,7 @@ def process_single_product(product_id, collection_id, datastore, station_bbox_df
 def main():
     collection_id = 'EO:EUM:DAT:MSG:CLM'
     start_date = datetime(2023, 6, 1)
-    end_date = datetime(2023, 6, 1)
+    end_date = datetime(2023, 6, 5)
 
     token = get_eumetsat_api_token()
     selected_collection, datastore = get_collection(token, collection_id)
