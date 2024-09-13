@@ -1,10 +1,10 @@
 import os
 import pandas as pd
-from datetime import datetime
+import numpy as np
+from datetime import datetime, timedelta
 from tqdm import tqdm
-import re
+import glob
 
-# Function to read ground station parameters from the satelliteParameters.txt file
 def read_ground_station_parameters(filename):
     ground_stations = {}
     with open(filename, 'r') as file:
@@ -27,89 +27,161 @@ def read_ground_station_parameters(filename):
                 }
     return ground_stations
 
-# Function to load data from specific files based on the ground station name
+def find_file(directory, filename):
+    file_path = os.path.join(directory, filename)
+    return file_path if os.path.exists(file_path) else None
+
 def load_data(ground_station_name, project_root):
-    # Construct absolute paths using the project root
     los_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'satellite_passes', f"{ground_station_name}_passes.txt")
-    cloud_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'cloud_cover', f"{ground_station_name}_eumetsat_2023-06-01_2023-06-05_df.csv")
+    cloud_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'cloud_cover', f"{ground_station_name}_eumetsat_2023-06-01_2023-06-05_detailed_df.csv")
     turbulence_day_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'turbulence', f"{ground_station_name}_day.txt")
     turbulence_night_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'turbulence', f"{ground_station_name}_night.txt")
 
-    # Check if files exist before loading
-    if not os.path.exists(los_file):
-        print(f"Warning: LoS file {los_file} not found.")
+    files_to_check = [
+        (los_file, "Line of Sight"),
+        (cloud_file, "Cloud Cover"),
+        (turbulence_day_file, "Day Turbulence"),
+        (turbulence_night_file, "Night Turbulence")
+    ]
+
+    missing_files = []
+    for file_path, desc in files_to_check:
+        if not os.path.exists(file_path):
+            missing_files.append(f"{desc} file ({file_path})")
+        else:
+            print(f"Found {desc} file: {file_path}")
+
+    if missing_files:
+        print(f"Warning: The following files for {ground_station_name} are missing: {', '.join(missing_files)}")
         return None, None, None, None
 
-    if not os.path.exists(cloud_file):
-        print(f"Warning: Cloud cover file {cloud_file} not found.")
-        return None, None, None, None
+    try:
+        # Load Line of Sight (LoS) data
+        los_data = []
+        with open(los_file, 'r') as f:
+            for line in tqdm(f, desc=f"Loading LoS data for {ground_station_name}", leave=False):
+                parts = line.split(', ')
+                start_time = datetime.strptime(parts[0].split(': ')[1], '%Y-%m-%d %H:%M:%S')
+                end_time = datetime.strptime(parts[1].split(': ')[1], '%Y-%m-%d %H:%M:%S')
+                duration = parts[2].split(': ')[1]
+                max_elevation = float(parts[3].split(': ')[1].split()[0])
+                los_data.append({
+                    'Start': start_time,
+                    'End': end_time,
+                    'Duration': duration,
+                    'Max Elevation': max_elevation
+                })
 
-    if not os.path.exists(turbulence_day_file):
-        print(f"Warning: Turbulence day file {turbulence_day_file} not found.")
-        return None, None, None, None
+        # Load cloud cover data
+        cloud_data = pd.read_csv(cloud_file, parse_dates=['time'])
+        print(f"Loaded cloud data. Shape: {cloud_data.shape}")
 
-    if not os.path.exists(turbulence_night_file):
-        print(f"Warning: Turbulence night file {turbulence_night_file} not found.")
-        return None, None, None, None
+        # Load turbulence data (day and night)
+        def read_turbulence_file(file_path):
+            with open(file_path, 'r') as f:
+                lines = f.readlines()
+                turbulence_data = []
+                for line in tqdm(lines, desc=f"Loading turbulence data from {os.path.basename(file_path)}", leave=False):
+                    parts = line.strip().split(', ')
+                    time = datetime.strptime(parts[0], '%Y-%m-%d %H:%M:%S')
+                    turbulence = float(parts[3])
+                    turbulence_data.append({'time': time, 'turbulence': turbulence})
+            return pd.DataFrame(turbulence_data)
+
+        turbulence_day = read_turbulence_file(turbulence_day_file)
+        turbulence_night = read_turbulence_file(turbulence_night_file)
+        
+        print(f"Loaded turbulence data. Day shape: {turbulence_day.shape}, Night shape: {turbulence_night.shape}")
+        
+        return los_data, cloud_data, turbulence_day, turbulence_night
     
-    # Load Line of Sight (LoS) data
-    los_data = []
-    with open(los_file, 'r') as f:
-        for line in f:
-            if "Start" in line and "End" in line:
-                times = line.split(", ")
-                start_time_str = times[0].split(": ", 1)[1].strip()
-                end_time_str = times[1].split(": ", 1)[1].strip()
-                
-                # Convert string to datetime
-                start_time = datetime.strptime(start_time_str, '%Y-%m-%d %H:%M:%S')
-                end_time = datetime.strptime(end_time_str, '%Y-%m-%d %H:%M:%S')
-                
-                # Append parsed data
-                los_data.append({'Start': start_time, 'End': end_time})
+    except Exception as e:
+        print(f"Error loading data for {ground_station_name}: {str(e)}")
+        return None, None, None, None
 
-    # Load cloud cover data and parse 'time' as date and time
-    cloud_data = pd.read_csv(cloud_file, parse_dates=['time'])
 
-    # Load turbulence data (day and night) with numeric extraction
-    with open(turbulence_day_file, 'r') as f:
-        day_data = f.read().strip()
-        turbulence_day = float(re.search(r'[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?', day_data).group())
+def calculate_weighted_cloud_cover(start_time, end_time, cloud_data):
+    # Find the closest data points before and after the start and end times
+    before_start = cloud_data[cloud_data['time'] <= start_time].iloc[-1] if not cloud_data[cloud_data['time'] <= start_time].empty else None
+    after_start = cloud_data[cloud_data['time'] > start_time].iloc[0] if not cloud_data[cloud_data['time'] > start_time].empty else None
+    before_end = cloud_data[cloud_data['time'] <= end_time].iloc[-1] if not cloud_data[cloud_data['time'] <= end_time].empty else None
+    after_end = cloud_data[cloud_data['time'] > end_time].iloc[0] if not cloud_data[cloud_data['time'] > end_time].empty else None
 
-    with open(turbulence_night_file, 'r') as f:
-        night_data = f.read().strip()
-        turbulence_night = float(re.search(r'[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?', night_data).group())
-    
-    return los_data, cloud_data, turbulence_day, turbulence_night
+    # Calculate weights and weighted cloud cover
+    weighted_cloud_cover = 0
+    count = 0
 
-# Function to combine LoS, cloud data, and turbulence data
-def combine_data(los_data, cloud_data, turbulence_data_day, turbulence_data_night, ground_station_name, output_dir):
-    if los_data is None or cloud_data is None or turbulence_data_day is None or turbulence_data_night is None:
-        print(f"Skipping ground station {ground_station_name} due to missing data.")
+    if before_start is not None and after_start is not None:
+        start_weight = (after_start['time'] - start_time).total_seconds() / (after_start['time'] - before_start['time']).total_seconds()
+        weighted_cloud_cover += start_weight * before_start['cloud_cover'] + (1 - start_weight) * after_start['cloud_cover']
+        count += 1
+    elif before_start is not None:
+        weighted_cloud_cover += before_start['cloud_cover']
+        count += 1
+    elif after_start is not None:
+        weighted_cloud_cover += after_start['cloud_cover']
+        count += 1
+
+    if before_end is not None and after_end is not None:
+        end_weight = (after_end['time'] - end_time).total_seconds() / (after_end['time'] - before_end['time']).total_seconds()
+        weighted_cloud_cover += end_weight * before_end['cloud_cover'] + (1 - end_weight) * after_end['cloud_cover']
+        count += 1
+    elif before_end is not None:
+        weighted_cloud_cover += before_end['cloud_cover']
+        count += 1
+    elif after_end is not None:
+        weighted_cloud_cover += after_end['cloud_cover']
+        count += 1
+
+    # Average the weighted cloud covers
+    return weighted_cloud_cover / count if count > 0 else np.nan
+
+def combine_data(los_data, cloud_data, turbulence_day, turbulence_night, ground_station_name, output_dir):
+    if not los_data or cloud_data.empty:
+        print(f"Skipping ground station {ground_station_name} due to insufficient data.")
         return
 
     combined_data = []
 
-    for los_entry in los_data:
+    for los_entry in tqdm(los_data, desc=f"Processing passes for {ground_station_name}", leave=False):
         start_time = los_entry['Start']
         end_time = los_entry['End']
-        day_or_night = 'day' if start_time.hour >= 6 and end_time.hour < 18 else 'night'
-
-        # Select appropriate turbulence strength based on time of day
-        turbulence_strength = turbulence_data_day if day_or_night == 'day' else turbulence_data_night
-
-        # Find corresponding cloud cover by matching closest timestamp
-        closest_cloud_cover = cloud_data.iloc[(cloud_data['time'] - start_time).abs().argsort()[:1]]
-        if not closest_cloud_cover.empty:
-            cloud_cover = closest_cloud_cover['cloud_cover'].values[0]
+        
+        # Calculate weighted cloud cover
+        cloud_cover = calculate_weighted_cloud_cover(start_time, end_time, cloud_data)
+        
+        # Get turbulence (check both day and night files)
+        if not turbulence_day.empty:
+            turbulence_day_values = turbulence_day[(turbulence_day['time'] >= start_time) & (turbulence_day['time'] <= end_time)]
         else:
-            cloud_cover = None
+            turbulence_day_values = pd.DataFrame()
+        
+        if not turbulence_night.empty:
+            turbulence_night_values = turbulence_night[(turbulence_night['time'] >= start_time) & (turbulence_night['time'] <= end_time)]
+        else:
+            turbulence_night_values = pd.DataFrame()
+        
+        if not turbulence_day_values.empty and turbulence_night_values.empty:
+            turbulence = turbulence_day_values['turbulence'].mean()
+            day_or_night = 'day'
+        elif turbulence_day_values.empty and not turbulence_night_values.empty:
+            turbulence = turbulence_night_values['turbulence'].mean()
+            day_or_night = 'night'
+        elif not turbulence_day_values.empty and not turbulence_night_values.empty:
+            turbulence = pd.concat([turbulence_day_values, turbulence_night_values])['turbulence'].mean()
+            day_or_night = 'mixed'
+        else:
+            turbulence = np.nan
+            day_or_night = 'unknown'
 
         combined_data.append({
             'Start': start_time,
             'End': end_time,
+            'Duration': los_entry['Duration'],
+            'Max Elevation': los_entry['Max Elevation'],
             'Cloud Cover': cloud_cover,
-            'Turbulence Strength': turbulence_strength,
+            'Turbulence': turbulence,
+            'Day/Night': day_or_night
         })
 
     combined_df = pd.DataFrame(combined_data)
@@ -117,19 +189,19 @@ def combine_data(los_data, cloud_data, turbulence_data_day, turbulence_data_nigh
     combined_df.to_csv(output_filename, index=False)
     print(f"Combined data saved to {output_filename}")
 
-# Specify the parameters file and output directory
+# Main execution
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
 PARAMS_FILE = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'data_integrator')
 
-# Ensure the output directory exists
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Read ground station parameters
 ground_stations = read_ground_station_parameters(PARAMS_FILE)
 
-# Combine data for each ground station with a progress bar
 for ground_station_name in tqdm(ground_stations.keys(), desc="Processing Ground Stations"):
-    los_data, cloud_data, turbulence_data_day, turbulence_data_night = load_data(ground_station_name, PROJECT_ROOT)
-    combine_data(los_data, cloud_data, turbulence_data_day, turbulence_data_night, ground_station_name, OUTPUT_DIR)
+    print(f"\nProcessing ground station: {ground_station_name}")
+    los_data, cloud_data, turbulence_day, turbulence_night = load_data(ground_station_name, PROJECT_ROOT)
+    combine_data(los_data, cloud_data, turbulence_day, turbulence_night, ground_station_name, OUTPUT_DIR)
+
+print("Processing complete. Check the output directory for results.")
