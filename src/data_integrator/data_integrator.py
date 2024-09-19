@@ -99,15 +99,12 @@ def load_data(ground_station_name, project_root):
         print(f"Error loading data for {ground_station_name}: {str(e)}")
         return None, None, None, None
 
-
 def calculate_weighted_cloud_cover(start_time, end_time, cloud_data):
-    # Find the closest data points before and after the start and end times
     before_start = cloud_data[cloud_data['time'] <= start_time].iloc[-1] if not cloud_data[cloud_data['time'] <= start_time].empty else None
     after_start = cloud_data[cloud_data['time'] > start_time].iloc[0] if not cloud_data[cloud_data['time'] > start_time].empty else None
     before_end = cloud_data[cloud_data['time'] <= end_time].iloc[-1] if not cloud_data[cloud_data['time'] <= end_time].empty else None
     after_end = cloud_data[cloud_data['time'] > end_time].iloc[0] if not cloud_data[cloud_data['time'] > end_time].empty else None
 
-    # Calculate weights and weighted cloud cover
     weighted_cloud_cover = 0
     count = 0
 
@@ -133,24 +130,19 @@ def calculate_weighted_cloud_cover(start_time, end_time, cloud_data):
         weighted_cloud_cover += after_end['cloud_cover']
         count += 1
 
-    # Average the weighted cloud covers
     return weighted_cloud_cover / count if count > 0 else np.nan
 
-def combine_data(los_data, cloud_data, turbulence_day, turbulence_night, ground_station_name, output_dir):
+def combine_data(los_data, cloud_data, turbulence_day, turbulence_night, ground_station_name, combined_data_list):
     if not los_data or cloud_data.empty:
         print(f"Skipping ground station {ground_station_name} due to insufficient data.")
         return
-
-    combined_data = []
 
     for los_entry in tqdm(los_data, desc=f"Processing passes for {ground_station_name}", leave=False):
         start_time = los_entry['Start']
         end_time = los_entry['End']
         
-        # Calculate weighted cloud cover
         cloud_cover = calculate_weighted_cloud_cover(start_time, end_time, cloud_data)
         
-        # Get turbulence (check both day and night files)
         if not turbulence_day.empty:
             turbulence_day_values = turbulence_day[(turbulence_day['time'] >= start_time) & (turbulence_day['time'] <= end_time)]
         else:
@@ -174,34 +166,34 @@ def combine_data(los_data, cloud_data, turbulence_day, turbulence_night, ground_
             turbulence = np.nan
             day_or_night = 'unknown'
 
-        combined_data.append({
+        combined_data_list.append({
             'Start': start_time,
             'End': end_time,
             'Duration': los_entry['Duration'],
             'Max Elevation': los_entry['Max Elevation'],
             'Cloud Cover': cloud_cover,
             'Turbulence': turbulence,
-            'Day/Night': day_or_night
+            'Day/Night': day_or_night,
+            'Ground Station': ground_station_name
         })
-
-    combined_df = pd.DataFrame(combined_data)
-    output_filename = os.path.join(output_dir, f"{ground_station_name}_combined_data.csv")
-    combined_df.to_csv(output_filename, index=False)
-    print(f"Combined data saved to {output_filename}")
 
 # Main execution
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
 PARAMS_FILE = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt')
-OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'data_integrator')
+OUTPUT_FILE = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'data_integrator', 'combined_data.csv')
 
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
 
 ground_stations = read_ground_station_parameters(PARAMS_FILE)
+
+combined_data_list = []
 
 for ground_station_name in tqdm(ground_stations.keys(), desc="Processing Ground Stations"):
     print(f"\nProcessing ground station: {ground_station_name}")
     los_data, cloud_data, turbulence_day, turbulence_night = load_data(ground_station_name, PROJECT_ROOT)
-    combine_data(los_data, cloud_data, turbulence_day, turbulence_night, ground_station_name, OUTPUT_DIR)
+    combine_data(los_data, cloud_data, turbulence_day, turbulence_night, ground_station_name, combined_data_list)
 
-print("Processing complete. Check the output directory for results.")
+combined_df = pd.DataFrame(combined_data_list)
+combined_df.to_csv(OUTPUT_FILE, index=False)
+print(f"Combined data saved to {OUTPUT_FILE}")
