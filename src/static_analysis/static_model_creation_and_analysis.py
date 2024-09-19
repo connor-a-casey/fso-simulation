@@ -1,8 +1,8 @@
 import os
 import pandas as pd
 from datetime import datetime
-from tqdm import tqdm
 import logging
+from tqdm import tqdm 
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -41,81 +41,87 @@ def read_satellite_parameters(file_path):
     params['ground_stations'] = ground_stations
     return params
 
-def create_pipeline(start_date_str, end_date_str, params, ground_station):
+def calculate_data_throughput(start_date_str, end_date_str, params):
     # Convert start and end dates to datetime objects
     start_date = pd.to_datetime(start_date_str)
     end_date = pd.to_datetime(end_date_str)
 
-    # Extract satellite parameters
-    data_rate_bps = float(params['Downlink_data_rate_Gbps']) * 1e9  # Convert Gbps to bps
+    # Total duration in seconds
+    total_time_seconds = (end_date - start_date).total_seconds()
 
-    # Find the correct ground station data
-    ground_station_data = next((station for station in params['ground_stations'] if station['Name'] == ground_station), None)
-    if ground_station_data is None:
-        raise ValueError(f"Ground station {ground_station} not found in parameters")
+    # Initialize total data transmitted
+    total_data_transmitted_bits = 0
+    maximum_possible_data_transmitted_bits = 0
 
-    # Read combined data for the ground station
-    combined_data_path = os.path.join(PROJECT_ROOT,'IAC-2024', 'data', 'output', 'data_integrator', f"{ground_station}_combined_data.csv")
+    # Paths
+    combined_data_path = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'data_integrator', 'combined_data.csv')
+
+    # Read combined data
     combined_df = pd.read_csv(combined_data_path, parse_dates=['Start', 'End'])
     combined_df = combined_df[(combined_df['Start'] >= start_date) & (combined_df['End'] <= end_date)]
 
     if combined_df.empty:
-        logger.warning(f"No data available for {ground_station} between {start_date_str} and {end_date_str}")
-        # Create an empty final dataframe with zero values
+        logger.warning(f"No data available between {start_date_str} and {end_date_str}")
+        # Return zero metrics if no data
         final_df = pd.DataFrame({
-            'Ground Station': [ground_station],
             'Start Date': [start_date_str],
             'End Date': [end_date_str],
-            'Network Availability (%)': [0.0],
-            'Total Data Transmitted (Gbits)': [0.0]
+            'Total Data Transmitted (Gbits)': [0.0],
+            'Percentage Data Throughput (%)': [0.0]
         })
         return final_df
 
-    # Initialize total time and available time
-    total_time_seconds = (end_date - start_date).total_seconds()
-    network_available_time_seconds = 0
-    total_data_transmitted_bits = 0
+    # Get satellite data rate
+    satellite_data_rate_bps = float(params['Downlink_data_rate_Gbps']) * 1e9  # Convert Gbps to bps
 
-    # Iterate over passes
-    for _, pass_data in combined_df.iterrows():
-        # Get duration in seconds
-        duration_seconds = (pass_data['End'] - pass_data['Start']).total_seconds()
-        cloud_cover_fraction = pass_data['Cloud Cover'] / 8  # Convert oktas to fraction between 0 and 1
+    # Iterate over passes for all ground stations with a progress bar
+    for _, pass_data in tqdm(combined_df.iterrows(), total=combined_df.shape[0], desc="Processing passes"):
+        # Get start and end times
+        start_time = pass_data['Start']
+        end_time = pass_data['End']
+        duration_seconds = (end_time - start_time).total_seconds()
 
-        # Determine network availability
-        network_available = (cloud_cover_fraction < 0.5)
+        ground_station_name = pass_data['Ground Station']
+        # Find the corresponding ground station's data rate
+        ground_station_data = next((station for station in params['ground_stations'] if station['Name'] == ground_station_name), None)
+        if ground_station_data is None:
+            raise ValueError(f"Ground station {ground_station_name} not found in parameters")
 
-        if network_available:
-            network_available_time_seconds += duration_seconds
+        # Get the ground station data rate
+        gs_data_rate_bps = ground_station_data['Downlink_data_rate_Gbps'] * 1e9  # Convert Gbps to bps
 
-            # Get the ground station data rate
-            gs_data_rate_bps = ground_station_data['Downlink_data_rate_Gbps'] * 1e9  # Convert Gbps to bps
+        # Use the minimum of satellite and ground station data rates
+        effective_data_rate_bps = min(satellite_data_rate_bps, gs_data_rate_bps)
 
-            # Use the minimum of satellite and ground station data rates
-            effective_data_rate_bps = min(data_rate_bps, gs_data_rate_bps)
+        # Calculate data transmitted during this pass
+        data_transmitted_bits = effective_data_rate_bps * duration_seconds
+        total_data_transmitted_bits += data_transmitted_bits
 
-            data_transmitted_bits = effective_data_rate_bps * duration_seconds
-            total_data_transmitted_bits += data_transmitted_bits
+        # Calculate maximum possible data transmitted during this pass
+        max_data_transmitted_bits = satellite_data_rate_bps * duration_seconds
+        maximum_possible_data_transmitted_bits += max_data_transmitted_bits
 
-    # Calculate Network Availability (%)
-    network_availability_percentage = (network_available_time_seconds / total_time_seconds) * 100
+    # Calculate percentage data throughput
+    if maximum_possible_data_transmitted_bits > 0:
+        percentage_data_throughput = (total_data_transmitted_bits / maximum_possible_data_transmitted_bits) * 100
+    else:
+        percentage_data_throughput = 0.0
 
-    # Convert total data transmitted to appropriate units, e.g., Gbits
+    # Convert total data transmitted to Gbits
     total_data_transmitted_Gbits = total_data_transmitted_bits / 1e9
 
     # Create a final dataframe with the results
     final_df = pd.DataFrame({
-        'Ground Station': [ground_station],
         'Start Date': [start_date_str],
         'End Date': [end_date_str],
-        'Network Availability (%)': [network_availability_percentage],
-        'Total Data Transmitted (Gbits)': [total_data_transmitted_Gbits]
+        'Total Data Transmitted (Gbits)': [total_data_transmitted_Gbits],
+        'Percentage Data Throughput (%)': [percentage_data_throughput]
     })
 
     # Save the final dataframe to a CSV file
     output_directory = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'static_analysis')
     os.makedirs(output_directory, exist_ok=True)
-    output_file = os.path.join(output_directory, f"{ground_station}_static_analysis_results.csv")
+    output_file = os.path.join(output_directory, "data_throughput_results.csv")
     final_df.to_csv(output_file, index=False)
     return final_df
 
@@ -131,15 +137,11 @@ if __name__ == "__main__":
 
     params = read_satellite_parameters(params_file_path)
 
-    ground_station_names = [station['Name'] for station in params['ground_stations']]
-
-    for ground_station in tqdm(ground_station_names, desc="Processing ground stations"):
-        logger.info(f"Processing ground station: {ground_station}")
-        try:
-            final_df = create_pipeline(start_date_str, end_date_str, params, ground_station)
-            logger.info(f"Results for {ground_station}:")
-            logger.info(final_df)
-        except Exception as e:
-            logger.error(f"An error occurred while processing {ground_station}: {e}")
+    try:
+        final_df = calculate_data_throughput(start_date_str, end_date_str, params)
+        logger.info("Data Throughput Results:")
+        logger.info(final_df)
+    except Exception as e:
+        logger.error(f"An error occurred while processing the data: {e}")
 
     logger.info("Processing complete. Check the output directory for results.")
