@@ -48,7 +48,7 @@ def compute_passes():
 
     ts = load.timescale()
     start_time = ts.utc(2023, 6, 1)
-    end_time = ts.utc(2023, 6, 5)  # Extended to 5 days as per the output
+    end_time = ts.utc(2024, 6, 2)  
 
     elevation_threshold = 20  # degrees
     min_pass_duration = timedelta(minutes=1)  # Only consider passes lasting longer than 1 minute
