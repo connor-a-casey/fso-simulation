@@ -2,7 +2,8 @@ import os
 import pandas as pd
 from datetime import datetime
 import logging
-from tqdm import tqdm  # For progress bar
+from tqdm import tqdm 
+import glob
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -105,79 +106,43 @@ def calculate_network_availability(start_date_str, end_date_str, params):
     # Total duration in seconds
     total_time_seconds = (end_date - start_date).total_seconds()
 
-    # Paths
-    passes_directory = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'satellite_passes')
-    cloud_cover_directory = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
+    # Path to the directory containing cloud cover data files
+    cloud_data_dir = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
 
-    # Read ground station list
-    ground_stations = params['ground_stations']
+    # Get all CSV files in the cloud_data_dir
+    cloud_files = glob.glob(os.path.join(cloud_data_dir, '*_df.csv'))
 
-    available_intervals = []
+    if not cloud_files:
+        raise FileNotFoundError(f"No cloud cover data files found in {cloud_data_dir}")
 
-    # Iterate over each ground station
-    for ground_station in ground_stations:
-        gs_name = ground_station['Name']
-        logger.info(f"Processing ground station: {gs_name}")
+    # Read and process cloud cover data for each file
+    df_list = []
+    for file in cloud_files:
+        station_name = os.path.basename(file).split('_')[0]
+        df = pd.read_csv(file, sep=',', parse_dates=['time'])
+        df = df[['time', 'cloud_cover']]
+        df['time'] = pd.to_datetime(df['time'])
+        df.sort_values(by='time', inplace=True)
+        df = df.rename(columns={'cloud_cover': f'cloud_{station_name}'})
+        df_list.append(df)
 
-        # Read satellite pass data for the ground station from a .txt file
-        passes_file = os.path.join(passes_directory, f"{gs_name}_passes.txt")
-        if not os.path.exists(passes_file):
-            logger.warning(f"No passes file found for {gs_name}, skipping.")
-            continue
+    # Merge all cloud cover data
+    df_merged = pd.concat(df_list, axis=1)
+    df_merged = df_merged.loc[:,~df_merged.columns.duplicated()].copy()
 
-        passes_df = parse_passes_txt_file(passes_file)
-        passes_df = passes_df[(passes_df['Start'] >= start_date) & (passes_df['End'] <= end_date)]
+    # Filter data for the specified date range
+    df_merged = df_merged[(df_merged['time'] >= start_date) & (df_merged['time'] <= end_date)]
 
-        if passes_df.empty:
-            logger.info(f"No passes within date range for {gs_name}, skipping.")
-            continue
-
-        # Adjusted cloud cover file name to match the naming convention
-        cloud_cover_file = os.path.join(cloud_cover_directory, f"{gs_name}_eumetsat_{start_date_str}_{end_date_str}_detailed_df.csv")
-        if not os.path.exists(cloud_cover_file):
-            logger.warning(f"No cloud cover file found for {gs_name}, skipping.")
-            continue
-
-        cloud_df = pd.read_csv(cloud_cover_file, parse_dates=['time'])
-
-        # Iterate over each pass with a progress bar
-        for _, pass_data in tqdm(passes_df.iterrows(), total=passes_df.shape[0], desc=f"Processing passes for {gs_name}"):
-            pass_start = pass_data['Start']
-            pass_end = pass_data['End']
-
-            # Get cloud cover data during the pass
-            mask = (cloud_df['time'] >= pass_start) & (cloud_df['time'] <= pass_end)
-            cloud_pass_df = cloud_df.loc[mask]
-
-            if cloud_pass_df.empty:
-                # No cloud data during this pass, assume worst case (completely cloudy)
-                pass_available = False
-            else:
-                # Determine if pass is available based on cloud cover threshold
-                cloud_cover_threshold = params['Cloud_cover_threshold']
-                pass_available = (cloud_pass_df['cloud_cover'] <= cloud_cover_threshold).all()
-
-            if pass_available:
-                # Add the available interval
-                available_intervals.append((pass_start, pass_end))
-
-    # Merge overlapping intervals across all ground stations
-    merged_intervals = merge_intervals(available_intervals)
-
-    # Calculate total network available time
-    total_network_available_time_seconds = sum((end - start).total_seconds() for start, end in merged_intervals)
-
-    # Calculate network availability percentage
-    network_availability_percentage = (total_network_available_time_seconds / total_time_seconds) * 100
-
-    # Ensure network availability is between 0% and 100%
-    network_availability_percentage = max(0.0, min(network_availability_percentage, 100.0))
+    # Calculate availability for all OGS
+    cloud_columns = [col for col in df_merged.columns if col.startswith('cloud_')]
+    condition_all_ogs = df_merged[cloud_columns].apply(lambda x: x < 1.5).any(axis=1)
+    availability_all_ogs = (condition_all_ogs.sum() / len(df_merged)) * 100
 
     # Create a final dataframe with the results
     final_df = pd.DataFrame({
         'Start Date': [start_date_str],
         'End Date': [end_date_str],
-        'Network Availability (%)': [network_availability_percentage]
+        'Network Availability All OGS (%)': [availability_all_ogs]
     })
 
     # Save the final dataframe to a CSV file
@@ -185,6 +150,7 @@ def calculate_network_availability(start_date_str, end_date_str, params):
     os.makedirs(output_directory, exist_ok=True)
     output_file = os.path.join(output_directory, "network_availability_results.csv")
     final_df.to_csv(output_file, index=False)
+
     return final_df
 
 if __name__ == "__main__":
