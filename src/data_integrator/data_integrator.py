@@ -33,7 +33,7 @@ def find_file(directory, filename):
 
 def load_data(ground_station_name, project_root):
     los_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'satellite_passes', f"{ground_station_name}_passes.txt")
-    cloud_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'cloud_cover', f"{ground_station_name}_eumetsat_2023-06-01_2023-06-05_detailed_df.csv")
+    cloud_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'cloud_cover', f"{ground_station_name}_eumetsat_2023-06-01_2024-06-02_detailed_df.csv")
     turbulence_day_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'turbulence', f"{ground_station_name}_day.txt")
     turbulence_night_file = os.path.join(project_root, 'IAC-2024', 'data', 'output', 'turbulence', f"{ground_station_name}_night.txt")
 
