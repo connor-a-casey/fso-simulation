@@ -26,3 +26,8 @@ Ground_station_3: Trauen, 52.9167, 9.6167, 110, 5, 10
 Cloud_cover_percentage_threshold: 90
 Turbulence_strength_threshold: Medium
 Link_margin_dB: 3
+
+# Additional Assumptions for Dynamic Model
+System_noise_temperature_K: 300
+Pointing_accuracy_arcsec: 1
+Bandwidth_GHz: 1
