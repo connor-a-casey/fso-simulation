@@ -79,8 +79,11 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
         ground_station_name = pass_data['Ground Station']
         # Find the corresponding ground station's data rate
         ground_station_data = next((station for station in params['ground_stations'] if station['Name'] == ground_station_name), None)
+    
+        # If the ground station is not in the parameter file, skip it
         if ground_station_data is None:
-            raise ValueError(f"Ground station {ground_station_name} not found in parameters")
+            logger.warning(f"Ground station {ground_station_name} not found in parameters. Skipping this pass.")
+            continue  # Skip this pass if the ground station is not listed in the parameters file
 
         # Get the ground station data rate
         gs_data_rate_bps = ground_station_data['Downlink_data_rate_Gbps'] * 1e9  # Convert Gbps to bps
@@ -101,7 +104,7 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
             monthly_data[month] = {
                 'Total Data Transmitted (Gbits)': 0,
                 'Maximum Possible Data (Gbits)': 0
-            }
+        }
 
         # Update monthly totals
         monthly_data[month]['Total Data Transmitted (Gbits)'] += data_transmitted_bits / 1e9  # Convert to Gbits
@@ -109,6 +112,7 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
 
         # Accumulate the overall totals
         total_data_transmitted_bits += data_transmitted_bits
+
 
     # Calculate overall network throughput
     total_data_transmitted_Gbits = total_data_transmitted_bits / 1e9

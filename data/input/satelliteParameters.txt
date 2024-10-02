@@ -26,6 +26,7 @@ Ground_station_5: Oberpfaffenhofen, 48.0808, 11.2860, 583, 5, 10
 Ground_station_6: The Hague, 52.070499, 4.300700, 1, 5, 10
 Ground_station_7: Madrid, 40.4167, -3.7033, 657, 5, 10
 
+
 # Cloud and Atmospheric Parameters
 Cloud_cover_percentage_threshold: 90
 Turbulence_strength_threshold: Medium
