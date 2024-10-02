@@ -11,6 +11,7 @@ import time
 import eumdac
 from tqdm import tqdm
 import concurrent.futures
+import numpy as np  # Added for array operations
 
 
 # Function to check conda environment
@@ -124,14 +125,18 @@ def get_station_bbox(ogs_data):
     for index, row in ogs_data.iterrows():
         station_code = row['ogs_code']
         coord = row['lon/lat']
-        lat_min = coord[1] - scan_radius
-        lat_max = coord[1] + scan_radius
-        lon_min = coord[0] - scan_radius
-        lon_max = coord[0] + scan_radius
+        lat = coord[1]
+        lon = coord[0]
+        if lon < 0:
+            lon += 360  # Adjust negative longitude to 0-360 degrees
+        lat_min = lat - scan_radius
+        lat_max = lat + scan_radius
+        lon_min = lon - scan_radius
+        lon_max = lon + scan_radius
         bbox = [lat_min, lat_max, lon_min, lon_max]
         station_bbox_list.append({
             'ogs_code': station_code,
-            'coord': coord,
+            'coord': (lon, lat),
             'bbox': bbox
         })
     return pd.DataFrame(station_bbox_list)
@@ -190,6 +195,11 @@ def process_grib_file(grib_file_path, station_bbox_df):
         time_values = dataset['time'].values
         latitudes = dataset['latitude'].values
         longitudes = dataset['longitude'].values
+
+        # Adjust dataset longitudes to 0-360 degrees if necessary
+        if longitudes.min() < 0:
+            longitudes = np.where(longitudes < 0, longitudes + 360, longitudes)
+
         cloud_data = dataset['p260537'].values  # Assuming 'p260537' is the correct variable for cloud cover
 
         results = []

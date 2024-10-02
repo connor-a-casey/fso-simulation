@@ -93,7 +93,7 @@ def write_turbulence_data_to_files(DAY_FITS_FILE, NIGHT_FITS_FILE, GROUND_STATIO
     for STATION in tqdm(GROUND_STATIONS, desc="Processing Ground Stations"):
         LATITUDE = STATION['LATITUDE_DEG']
         LONGITUDE = STATION['LONGITUDE_DEG']
-        STATION_NAME = STATION['NAME'].replace(" ", "_")  # Replace spaces with underscores for the file name
+        STATION_NAME = STATION['NAME']
 
         # Get LoS times for the current station
         station_los_times = los_times.get(STATION_NAME, [])

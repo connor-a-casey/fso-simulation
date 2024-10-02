@@ -20,7 +20,7 @@ def read_parameters(file_path):
 
 def extract_ground_stations(params):
     ground_stations = []
-    for i in range(1, 4):
+    for i in range(1, 8):
         key = f'Ground_station_{i}'
         if key in params:
             station_data = params[key].split(',')
