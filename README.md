@@ -74,7 +74,7 @@ The model components are executed in the following order:
 ## Diagram
 <div align="center">
     <h1>
-        <img src="assets/software_architecture_vF.svg">
+        <img src="assets/software_architecture_vMDF.svg">
     </h1>
 </div>
 
