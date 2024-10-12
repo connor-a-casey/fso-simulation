@@ -18,8 +18,13 @@ Acquisition_tracking_El_deg: +/-55
 
 # Ground Stations (large capacity and small capacity)
 # Format: Name, Latitude_deg, Longitude_deg, Altitude_m, Downlink_data_rate_Gbps, Tracking_accuracy_arcsec
-
-Ground_station_1: Madrid, 40.4167, -3.7033, 657, 5, 10
+Ground_station_1: Tenerife, 28.299525, -16.5101, 2393, 5, 10
+Ground_station_2: Nemea, 37.8167, 22.7167, 600, 5, 10
+Ground_station_3: Trauen, 52.9167, 9.6167, 110, 5, 10
+Ground_station_4: Goonhilly, 50.0482, -5.1810, 120, 5, 10
+Ground_station_5: Oberpfaffenhofen, 48.0808, 11.2860, 583, 5, 10
+Ground_station_6: The Hague, 52.070499, 4.300700, 1, 5, 10
+Ground_station_7: Madrid, 40.4167, -3.7033, 657, 5, 10
 
 # Cloud and Atmospheric Parameters
 Cloud_cover_percentage_threshold: 90

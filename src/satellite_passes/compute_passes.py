@@ -47,8 +47,8 @@ def compute_passes():
     satellite = load_satellite(TLE_FILE)
 
     ts = load.timescale()
-    start_time = ts.utc(2023, 6, 1)
-    end_time = ts.utc(2024, 6, 2)  
+    start_time = ts.utc(2008, 1, 1)
+    end_time = ts.utc(2013, 1, 1)  
 
     elevation_threshold = 20  # degrees
     min_pass_duration = timedelta(minutes=1)  # Only consider passes lasting longer than 1 minute
