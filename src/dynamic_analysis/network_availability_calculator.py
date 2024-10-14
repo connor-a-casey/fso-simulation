@@ -175,8 +175,8 @@ def calculate_network_availability(start_date_str, end_date_str, params):
     return final_df
 
 def main():
-    start_date_str = '2008-01-01'
-    end_date_str = '2013-01-01'
+    start_date_str = '2023-06-01'
+    end_date_str = '2024-06-01'
 
     params_file_path = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt')
     if not os.path.exists(params_file_path):
