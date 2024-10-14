@@ -71,7 +71,7 @@ The model components are executed in the following order:
 - The `data_integrator` component pulls data from the `satellite_passes`, `turbulence`, and `cloud_cover` components.
 - The `dynamic_analysis` component uses data from both the `satelliteParameters.txt` file and the `data_integrator` component.
 
-## Diagram
+## Software Architecture
 <div align="center">
     <h1>
         <img src="assets/software_architecture_vF.svg">
