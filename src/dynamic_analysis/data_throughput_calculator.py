@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import logging
 from tqdm import tqdm
 import matplotlib.ticker as mtick
+from matplotlib.dates import DateFormatter
 
 # Suppress detailed font-matching debug logs
 import matplotlib
@@ -226,13 +227,12 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
     satellite_data_rate_bps = params['Downlink_data_rate_Gbps'] * 1e9
     logger.info(f"Satellite data rate: {satellite_data_rate_bps} bps")
 
-    # Set bandwidth based on system characteristics (e.g., modulation format)
-    bandwidth_hz = params['Bandwidth_GHz'] * 1e9  # Convert GHz to Hz
+    bandwidth_hz = params['Bandwidth_GHz'] * 1e9
     logger.info(f"Bandwidth set to: {bandwidth_hz} Hz")
 
     total_data_transmitted_bits = 0
     maximum_possible_data_transmitted_bits = 0
-
+    passes_data = []  # List to store per-pass data
     monthly_data = {}
 
     try:
@@ -240,19 +240,12 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
         wavelength_m = params['Operational_wavelength_m']
         optical_tx_power_w = params['Optical_Tx_power_W']
         tx_aperture_m = params['Optical_aperture_m']
-        rx_aperture_m = params['Optical_aperture_m']  # Assuming same for tx and rx
+        rx_aperture_m = params['Optical_aperture_m']
         link_margin_db = params['Link_margin_dB']
         satellite_pointing_accuracy_arcsec = params['Pointing_accuracy_arcsec']
         system_noise_temperature_k = params['System_noise_temperature_K']
 
-        logger.info(f"Satellite parameters:")
-        logger.info(f"  Height: {satellite_height_km} km")
-        logger.info(f"  Wavelength: {wavelength_m} m")
-        logger.info(f"  Tx Power: {optical_tx_power_w} W")
-        logger.info(f"  Tx/Rx Aperture: {tx_aperture_m} m")
-        logger.info(f"  Link Margin: {link_margin_db} dB")
-        logger.info(f"  Pointing Accuracy: {satellite_pointing_accuracy_arcsec} arcsec")
-        logger.info(f"  System Noise Temperature: {system_noise_temperature_k} K")
+        logger.info(f"Satellite parameters: (Height: {satellite_height_km} km, Wavelength: {wavelength_m} m, Tx Power: {optical_tx_power_w} W, Bandwidth: {bandwidth_hz} Hz)")
 
     except KeyError as e:
         logger.error(f"Missing required parameter: {e}")
@@ -260,35 +253,9 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
 
     k_B_db = calculate_boltzmann_constant_db()
     Ts_db = calculate_system_noise_temperature_db(system_noise_temperature_k)
-    logger.info(f"Boltzmann constant (dB): {k_B_db}")
-    logger.info(f"System noise temperature (dB): {Ts_db}")
+    logger.info(f"Boltzmann constant (dB): {k_B_db}, System noise temperature (dB): {Ts_db}")
 
-    # Generate list of months covering the data range
     all_months = pd.date_range(start=start_date, end=end_date, freq='MS')
-
-    # Identify incomplete months at the start and end
-    first_month_start = all_months[0]
-    last_month_start = all_months[-1]
-    first_month_end = (first_month_start + pd.offsets.MonthEnd(0)).normalize()
-    last_month_end = (last_month_start + pd.offsets.MonthEnd(0)).normalize()
-
-    # Check if the first month is incomplete
-    if start_date > first_month_start:
-        logger.info(f"First month {first_month_start.strftime('%Y-%m')} is incomplete and will be excluded.")
-        all_months = all_months[1:]
-
-    # Check if the last month is incomplete
-    if end_date < last_month_end:
-        logger.info(f"Last month {last_month_start.strftime('%Y-%m')} is incomplete and will be excluded.")
-        all_months = all_months[:-1]
-
-    # Prepare monthly data dictionary
-    for month_start in all_months:
-        month = month_start.strftime('%Y-%m')
-        monthly_data[month] = {
-            'Total_Data_Transmitted_(Gbits)': 0,
-            'Maximum_Possible_Data_(Gbits)': 0
-        }
 
     for pass_data in tqdm(combined_df.itertuples(index=False), total=combined_df.shape[0], desc="Processing passes"):
         try:
@@ -307,10 +274,9 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
 
             # Adjust the effective data rate based on real-world conditions
             cloud_cover_fraction = getattr(pass_data, 'Cloud_Cover', 0.0)
-            Cn2 = getattr(pass_data, 'Turbulence', 1e-15)  # Turbulence parameter
+            Cn2 = getattr(pass_data, 'Turbulence', 1e-15)
             elevation = pass_data.Max_Elevation
 
-            # Recalculate the losses and apply them to the effective data rate
             S_km = calculate_slant_range(EARTH_RADIUS_KM, satellite_height_km, elevation)
             S_m = S_km * 1000
 
@@ -333,24 +299,36 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
             optical_tx_power_dbw = 10 * np.log10(optical_tx_power_w)
             rx_power_dbw = optical_tx_power_dbw + Gt_db + Gr_db - total_loss_db - link_margin_db
 
-            # Calculate noise power
             noise_power_dbw_total = k_B_db + Ts_db + 10 * np.log10(bandwidth_hz)
 
-            # Calculate SNR
             snr_db = rx_power_dbw - noise_power_dbw_total
             snr_linear = 10 ** (snr_db / 10)
 
-            # Use Shannon capacity formula to calculate achievable data rate
             achievable_data_rate_bps = min(bandwidth_hz * np.log2(1 + snr_linear), effective_data_rate_bps)
 
             data_transmitted_bits = max(achievable_data_rate_bps * duration_seconds, 0)
-            max_data_transmitted_bits = effective_data_rate_bps * duration_seconds  # Ideal max capacity
+            max_data_transmitted_bits = effective_data_rate_bps * duration_seconds
             maximum_possible_data_transmitted_bits += max_data_transmitted_bits
 
+            # Store per-pass data
+            passes_data.append({
+                'Start_Time': start_time,
+                'End_Time': end_time,
+                'Duration_seconds': duration_seconds,
+                'Ground_Station': ground_station_name,
+                'Achievable_Data_Rate_(Gbps)': achievable_data_rate_bps / 1e9,
+                'Data_Transmitted_(Gbits)': data_transmitted_bits / 1e9
+            })
+
+            # Monthly data aggregation
             month = start_time.strftime('%Y-%m')
-            if month in monthly_data:
-                monthly_data[month]['Total_Data_Transmitted_(Gbits)'] += data_transmitted_bits / 1e9
-                monthly_data[month]['Maximum_Possible_Data_(Gbits)'] += max_data_transmitted_bits / 1e9
+            if month not in monthly_data:
+                monthly_data[month] = {
+                    'Total_Data_Transmitted_(Gbits)': 0,
+                    'Maximum_Possible_Data_(Gbits)': 0
+                }
+            monthly_data[month]['Total_Data_Transmitted_(Gbits)'] += data_transmitted_bits / 1e9
+            monthly_data[month]['Maximum_Possible_Data_(Gbits)'] += max_data_transmitted_bits / 1e9
 
             total_data_transmitted_bits += data_transmitted_bits
 
@@ -358,7 +336,6 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
             logger.error(f"Error processing pass: {e}")
             logger.exception("Detailed error information:")
 
-    # Calculate overall percentage data throughput
     overall_percentage_data_throughput = (total_data_transmitted_bits / maximum_possible_data_transmitted_bits * 100
                                           if maximum_possible_data_transmitted_bits > 0 else 0.0)
 
@@ -367,15 +344,7 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
     logger.info(f"Total data transmitted: {total_data_transmitted_Gbits} Gbits")
     logger.info(f"Overall percentage data throughput: {overall_percentage_data_throughput}%")
 
-    monthly_df = pd.DataFrame.from_dict(monthly_data, orient='index')
-    monthly_df.index.name = 'Month'
-    monthly_df['Percentage_Data_Throughput_(%)'] = (
-        monthly_df['Total_Data_Transmitted_(Gbits)'] / monthly_df['Maximum_Possible_Data_(Gbits)'] * 100
-    ).fillna(0)
-
-    # Reset index to turn 'Month' into a column
-    monthly_df = monthly_df.reset_index()
-
+    # Update the dataframes and outputs
     overall_df = pd.DataFrame({
         'Start Date': [start_date_str],
         'End Date': [end_date_str],
@@ -383,8 +352,27 @@ def calculate_data_throughput(start_date_str, end_date_str, params):
         'Percentage_Data_Throughput_(%)': [overall_percentage_data_throughput]
     })
 
+    # Prepare monthly DataFrame
+    if monthly_data:
+        monthly_df = pd.DataFrame.from_dict(monthly_data, orient='index').reset_index()
+        monthly_df.rename(columns={'index': 'Month'}, inplace=True)
+        monthly_df['Percentage_Data_Throughput_(%)'] = (
+            monthly_df['Total_Data_Transmitted_(Gbits)'] / monthly_df['Maximum_Possible_Data_(Gbits)'] * 100
+        ).fillna(0)
+    else:
+        monthly_df = pd.DataFrame(columns=[
+            'Month', 'Total_Data_Transmitted_(Gbits)', 'Maximum_Possible_Data_(Gbits)', 'Percentage_Data_Throughput_(%)'
+        ])
+
+    # Save outputs to CSV files and return the updated dataframes
     output_directory = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'dynamic_analysis', 'data_throughput')
     os.makedirs(output_directory, exist_ok=True)
+
+    # Save per-pass data
+    passes_output_file = os.path.join(output_directory, "per_pass_throughput.csv")
+    passes_df = pd.DataFrame(passes_data)
+    passes_df.to_csv(passes_output_file, index=False)
+    logger.info(f"Per-pass throughput data saved to: {passes_output_file}")
 
     monthly_output_file = os.path.join(output_directory, "monthly_data_throughput.csv")
     monthly_df.to_csv(monthly_output_file, index=False)
@@ -401,6 +389,11 @@ def plot_monthly_data(monthly_df, output_directory):
     if 'Month' not in monthly_df.columns:
         logger.error("The 'Month' column is missing from the DataFrame.")
         raise KeyError("'Month' column not found in the DataFrame.")
+
+    # Check if the DataFrame is empty
+    if monthly_df.empty:
+        logger.warning("Monthly DataFrame is empty. No data to plot.")
+        return
 
     # Sort the DataFrame by 'Month' to ensure correct order
     monthly_df['Month'] = pd.to_datetime(monthly_df['Month'])
@@ -456,9 +449,50 @@ def plot_monthly_data(monthly_df, output_directory):
     plt.close(fig)  # Close the figure to free up memory
     logger.info(f"Monthly data and throughput plot saved to: {plot_file}")
 
+def plot_per_pass_data_monthly(passes_df, output_directory):
+    if passes_df.empty:
+        logger.warning("Per-pass DataFrame is empty. No data to plot.")
+        return
+
+    # Add a 'Month' column to the DataFrame
+    passes_df['Month'] = passes_df['Start_Time'].dt.to_period('M')
+
+    # Calculate the average data transmitted per pass for each month
+    monthly_avg = passes_df.groupby('Month')['Data_Transmitted_(Gbits)'].mean()
+
+    # Save the monthly average data to a CSV file
+    per_pass_monthly_output_file = os.path.join(output_directory, "per_pass_monthly_data.csv")
+    monthly_avg_df = monthly_avg.reset_index()
+    monthly_avg_df.columns = ['Month', 'Average_Data_Transmitted_per_Pass_(Gbits)']
+    monthly_avg_df.to_csv(per_pass_monthly_output_file, index=False)
+    logger.info(f"Per-pass monthly data saved to: {per_pass_monthly_output_file}")
+
+    # Convert the index to datetime for plotting
+    months = monthly_avg.index.to_timestamp().to_pydatetime()
+    avg_data_transmitted = monthly_avg.values
+
+    # Create the line plot
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(months, avg_data_transmitted, marker='o', linestyle='-', color='blue')
+
+    # Customize the plot
+    ax.set_xlabel('Month')
+    ax.set_ylabel('Average Data Transmitted per Pass (Gbits)')
+    ax.set_title('Monthly Average Data Transmitted per Pass')
+    ax.xaxis.set_major_formatter(DateFormatter('%Y-%m'))
+    plt.xticks(rotation=45, ha='right')
+    plt.grid(True)
+    plt.tight_layout()
+
+    # Save the plot
+    plot_file = os.path.join(output_directory, "per_pass_data_monthly_plot.png")
+    plt.savefig(plot_file)
+    plt.close(fig)
+    logger.info(f"Per-pass data monthly plot saved to: {plot_file}")
+
 def main():
-    start_date_str = '2008-01-01'
-    end_date_str = '2013-01-01'
+    start_date_str = '2023-06-01'
+    end_date_str = '2024-06-01'
 
     params_file_path = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt')
     if not os.path.exists(params_file_path):
@@ -467,7 +501,7 @@ def main():
 
     try:
         params = read_satellite_parameters(params_file_path)
-        
+
         # Print key parameters
         logger.info(f"Satellite Altitude: {params['Altitude_km']} km")
         logger.info(f"Optical Tx Power: {params['Optical_Tx_power_W']} W")
@@ -483,6 +517,15 @@ def main():
             logger.info("Monthly data and throughput plot saved successfully.")
         else:
             logger.warning("No data to plot.")
+
+        # Load per-pass data
+        passes_output_file = os.path.join(output_directory, "per_pass_throughput.csv")
+        if os.path.exists(passes_output_file):
+            passes_df = pd.read_csv(passes_output_file, parse_dates=['Start_Time', 'End_Time'])
+            plot_per_pass_data_monthly(passes_df, output_directory)
+            logger.info("Per-pass data monthly plot saved successfully.")
+        else:
+            logger.warning(f"Per-pass throughput data file not found at {passes_output_file}")
 
         if not overall_df.empty:
             logger.info(f"Overall Network Throughput:\n{overall_df.to_string(index=False)}")
