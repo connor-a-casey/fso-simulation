@@ -13,8 +13,8 @@ This repository contains resources related to the **75th International Astronaut
 
 **Authors:** 
 - Mr. Eugene Rotherham: University College London (UCL), United Kingdom
-- Ms. Eva Fernandez Rodriguez: Netherlands Organisation for Applied Scientific Research (TNO), The Netherlands
 - Mr. Connor Casey: University of Massachusetts Amherst, United States
+- Ms. Eva Fernandez Rodriguez: Netherlands Organisation for Applied Scientific Research (TNO), The Netherlands
 - Ms. Karen Wendy Vidaurre Torrez: Space Generation Advisory Council (SGAC), Bolivia
 - Mr. Maren Mashor: Space Generation Advisory Council (SGAC), Nigeria
 - Mr. Isaac Pike: University College London (UCL), United Kingdom
