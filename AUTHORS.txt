@@ -2,11 +2,9 @@
 
 The following individuals have contributed significantly to the project:
 
-- [Mr. Eugene Rotherham](mailto:eugene.rotherham@gmail.com): Space Generation Advisory Council (SGAC), United Kingdom
+- [Mr. Eugene Rotherham](mailto:eugene.rotherham@gmail.com): University College London (UCL), United Kingdom
+- [Mr. Connor Casey](mailto:cacasey@umass.edu): College of Information and Computer Sciences, University of Massachusetts Amherst, United States
 - [Ms. Eva Fernandez Rodriguez](mailto:00evafernandez@gmail.com): Netherlands Organisation for Applied Scientific Research (TNO), The Netherlands
-- [Mr. Connor Casey](mailto:cacasey@umass.edu): Space Generation Advisory Council (SGAC), United States
-- [Ms. Karen Wendy Vidaurre Torrez](mailto:karen.vidaurre2001@gmail.com): Space Generation Advisory Council (SGAC), Bolivia
-- [Mr. Maren Mashor](mailto:reuben.mashor@gmail.com): Space Generation Advisory Council (SGAC), Nigeria
+- [Ms. Karen Wendy Vidaurre Torrez](mailto:karen.vidaurre2001@gmail.com): Kyushu Institute of Technology, Japan
+- [Mr. Maren Mashor](mailto:reuben.mashor@gmail.com): National Space Research and Development Agency (NASRDA), Nigeria
 - [Mr. Isaac Pike](mailto:isaacpike@outlook.com): University College London (UCL), United Kingdom
-
-Please note that this list may not include all contributors, especially those who have made minor contributions or who have opted not to be listed. For a comprehensive list of contributors, refer to the project's version control history.
