@@ -97,7 +97,7 @@ To run the model:
 
 
 ## Repository Contents:
-- **Paper:** [\[Link to published paper\](https://arxiv.org/abs/2410.23470)
+- **Paper:** [Link to published paper](https://arxiv.org/abs/2410.23470)
 - **Codebase:** [Link to codebase]
 - **Datasets:** [Link to datasets]
 
