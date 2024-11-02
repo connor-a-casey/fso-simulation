@@ -98,8 +98,8 @@ To run the model:
 
 ## Repository Contents:
 - **Paper:** [Link to published paper](https://arxiv.org/abs/2410.23470)
-- **Codebase:** [Link to codebase]
-- **Datasets:** [Link to datasets]
+- **Datasets:** [Link to datasets](https://www.dropbox.com/scl/fo/k7yug64a3rukr89p8xlmq/AH92crjcwRxoaDdJj1JSdmM?rlkey=i7putlvrf36inva68dfwipo6y&st=e0bcoyof&dl=0)
+- **Data Analysis:** [Link to Notebook](https://www.dropbox.com/scl/fo/b1rnfzf3o8bz4iplv2ql4/AL59S5MLe3bO77BnmGWxis0?rlkey=fm22cwnophj40uggofkulb1x7&st=ienm03r6&dl=0)
 
 ## Contact Information:
 For inquiries or collaborations related to this presentation, please reach out to the authors directly via the provided email addresses in AUTHORS.txt
