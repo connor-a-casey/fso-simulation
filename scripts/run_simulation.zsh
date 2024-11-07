@@ -1,5 +1,27 @@
 #!/bin/zsh
 
+# display warning message
+echo "Warning: Running this script will delete any existing data in the data/output folder. Do you want to proceed? (y/n)"
+
+while true; do
+    read -p "enter choice: y/n " choice
+    case "$choice" in
+        y|Y ) 
+            echo "proceeding with the action..."
+            # place the code for the action here
+            break
+            ;;
+        n|N )
+            echo "action canceled."
+            exit 0
+            ;;
+        * )
+            echo "invalid input. please enter 'y' or 'n'."
+            ;;
+    esac
+done
+
+
 # Run compute_passes.py
 echo "Running compute_passes.py..."
 python3 src/satellite_passes/compute_passes.py
@@ -62,4 +84,4 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "All scripts executed successfully."
+echo "All scripts executed successfully. See the data/output folders for respective results."
