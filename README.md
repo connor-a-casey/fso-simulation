@@ -85,8 +85,14 @@ This diagram illustrates the repository structure, execution order, and data flo
 To run the model:
 
 1. Ensure all required data is present in the `data/input` folder.
-2. Execute the scripts in the `src` folder in the order specified above.
-3. Check the `data/output` folder for results from each component.
+2. Add your TLE file (e.g., `terra.tle`) into the same folder as the `satellite_passes` folder.
+3. Create a `.env` file in the project root directory and add your EUMET API key as follows:
+   ```
+   EUMET_API_KEY=your_api_key_here
+   ```
+4. Fill in all necessary parameters in the `satelliteParameters.txt` file located in the `data/input` folder.
+5. Execute the scripts in the `src` folder in the order specified above.
+6. Check the `data/output` folder for results from each component.
 
 ## Dependencies
 

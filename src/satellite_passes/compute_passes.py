@@ -16,6 +16,9 @@ def read_parameters(file_path):
             if line.strip() and not line.startswith('#'):
                 key, value = line.strip().split(':', 1)
                 params[key.strip()] = value.strip()
+    # Convert start and end time to datetime objects
+    params['Start_time'] = datetime.strptime(params['Start_time'], '%Y-%m-%d')
+    params['End_time'] = datetime.strptime(params['End_time'], '%Y-%m-%d')
     return params
 
 def extract_ground_stations(params):
@@ -47,8 +50,8 @@ def compute_passes():
     satellite = load_satellite(TLE_FILE)
 
     ts = load.timescale()
-    start_time = ts.utc(2023, 6, 1)
-    end_time = ts.utc(2024, 6, 1)  
+    start_time = ts.utc(params['Start_time'].year, params['Start_time'].month, params['Start_time'].day)
+    end_time = ts.utc(params['End_time'].year, params['End_time'].month, params['End_time'].day)
 
     elevation_threshold = 20  # degrees
     min_pass_duration = timedelta(minutes=1)  # Only consider passes lasting longer than 1 minute

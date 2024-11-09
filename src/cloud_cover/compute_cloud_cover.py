@@ -42,6 +42,18 @@ MAX_RETRIES = 10
 RAW_GRIB_STAGING = os.path.join('/Volumes/TOSHIBA EXT/cloud_staging')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
 
+def read_satellite_parameters(file_path):
+    params = {}
+    with open(file_path, 'r') as f:
+        for line in f:
+            if line.strip() and not line.startswith('#'):
+                key, value = line.strip().split(':', 1)
+                params[key.strip()] = value.strip()
+    # Convert start and end time to datetime objects
+    params['Start_time'] = datetime.strptime(params['Start_time'], '%Y-%m-%d')
+    params['End_time'] = datetime.strptime(params['End_time'], '%Y-%m-%d')
+    return params
+
 
 def get_eumetsat_api_token():
     credentials = f"{CONSUMER_KEY}:{CONSUMER_SECRET}"
@@ -250,10 +262,11 @@ def process_single_product(product_id, collection_id, datastore, station_bbox_df
 
 
 def main():
+    params = read_satellite_parameters(os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt'))
     collection_id = 'EO:EUM:DAT:MSG:CLM'
-    start_date = datetime(2023, 6, 1)
-    end_date = datetime(2024, 6, 2)
-
+    start_date = params['Start_time']
+    end_date = params['End_time']
+    
     token = get_eumetsat_api_token()
     selected_collection, datastore = get_collection(token, collection_id)
 
@@ -295,6 +308,3 @@ def main():
 
         # Save each DataFrame to a CSV file, using a comma as the separator
         df.to_csv(f"{OUTPUT_DIR}/{station_code}_eumetsat_{start_date.date()}_{end_date.date()}_detailed_df.csv", sep=',', index=False)
-
-if __name__ == "__main__":
-    main()

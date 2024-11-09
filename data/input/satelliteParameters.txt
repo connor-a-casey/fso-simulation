@@ -16,6 +16,10 @@ Link_range_km: 500
 Acquisition_tracking_Az_deg: +/-160
 Acquisition_tracking_El_deg: +/-55
 
+# Simulation Time Parameters
+Start_time: 2023-06-01
+End_time: 2024-06-01
+
 # Ground Stations (large capacity and small capacity)
 # Format: Name, Latitude_deg, Longitude_deg, Altitude_m, Downlink_data_rate_Gbps, Tracking_accuracy_arcsec
 Ground_station_1: Tenerife, 28.299525, -16.5101, 2393, 10, 10
