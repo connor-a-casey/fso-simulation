@@ -18,7 +18,7 @@ Acquisition_tracking_El_deg: +/-55
 
 # Simulation Time Parameters
 Start_time: 2023-06-01
-End_time: 2023-06-05
+End_time: 2023-06-03
 
 # Ground Stations (large capacity and small capacity)
 # Format: Name, Latitude_deg, Longitude_deg, Altitude_m, Downlink_data_rate_Gbps, Tracking_accuracy_arcsec

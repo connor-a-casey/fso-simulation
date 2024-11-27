@@ -11,7 +11,7 @@ import time
 import eumdac
 from tqdm import tqdm
 import concurrent.futures
-import numpy as np  # Added for array operations
+import numpy as np 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
@@ -19,7 +19,7 @@ CONSUMER_KEY = os.getenv('CONSUMER_KEY')
 CONSUMER_SECRET = os.getenv('CONSUMER_SECRET')
 TOKEN_URL = "https://api.eumetsat.int/token"
 MAX_RETRIES = 10
-RAW_GRIB_STAGING = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover','m')
+RAW_GRIB_STAGING = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover','cloud_staging')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
 
 

@@ -43,7 +43,6 @@ echo "Running compute_cloud_cover.py..."
 python3 src/cloud_cover/compute_cloud_cover.py
 if [ $? -ne 0 ]; then
     echo "Error: compute_cloud_cover.py failed to execute."
-    conda deactivate
     exit 1
 fi
 

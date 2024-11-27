@@ -12,11 +12,11 @@ This repository contains resources related to the **75th International Astronaut
 **Title:** Advancing Free-Space Optical Communication System Architecture: Performance Analysis of Diverse Optical Ground Station Network Configurations
 
 **Authors:** 
-- Mr. Eugene Rotherham: University College London (UCL), United Kingdom
 - Mr. Connor Casey: University of Massachusetts Amherst, United States
+- Mr. Eugene Rotherham: University College London (UCL), United Kingdom
 - Ms. Eva Fernandez Rodriguez: Netherlands Organisation for Applied Scientific Research (TNO), The Netherlands
-- Ms. Karen Wendy Vidaurre Torrez: Space Generation Advisory Council (SGAC), Bolivia
-- Mr. Maren Mashor: Space Generation Advisory Council (SGAC), Nigeria
+- Ms. Karen Wendy Vidaurre Torrez: Kyushu Institute of Technology, Japan
+- Mr. Maren Mashor: National Space Research and Development Agency (NASRDA), Nigeria
 - Mr. Isaac Pike: University College London (UCL), United Kingdom
 
 **About the Presentation:**
@@ -96,7 +96,7 @@ To ensure a consistent and reproducible environment, we've containerized the sim
 1. **Pull the Docker image from Docker Hub:**
 
     ```bash
-    docker pull cocasey/fso-simulation:v1.0
+    docker pull cocasey/fso-simulation:1.0
     ```
 
 2. **Run the container interactively:**
@@ -153,7 +153,7 @@ To ensure a consistent and reproducible environment, we've containerized the sim
 
 8. **Check the output:**
 
-    The results will be stored in the `data/output` folder within the container.
+    The results will be stored in the `data/output/dynamic_analysis` folder within the container.
 
 #### Exiting the Container:
 
@@ -209,23 +209,15 @@ If you prefer to run the simulation without Docker, follow these steps:
 
 4. **Check the Output:**
 
-    Check the `data/output` folder for results from each component.
+    Check the `data/output/dynamic_analysis` folder for results from each component.
 
 ## Dependencies
 
 - Satellite TLE data file (`.tle`)
 - Access to the EUMETSAT API gateway for cloud cover data
 - Docker (if using the Docker setup)
-- Python (version X.X or higher)
+- Python (version 3.9 or higher)
 - Required Python packages listed in `requirements.txt`
-
-## Dependencies
-
-- Satellite TLE data file (`.tle`)
-- API gateway access for cloud cover data
-- Python (version X.X or higher)
-- [List any other dependencies or libraries required]
-
 
 ## Repository Contents:
 - **Paper:** [Link to published paper](https://arxiv.org/abs/2410.23470)
@@ -233,10 +225,20 @@ If you prefer to run the simulation without Docker, follow these steps:
 - **Data Analysis:** [Link to Notebook](https://www.dropbox.com/scl/fo/b1rnfzf3o8bz4iplv2ql4/AL59S5MLe3bO77BnmGWxis0?rlkey=fm22cwnophj40uggofkulb1x7&st=ienm03r6&dl=0)
 
 ## Contact Information:
-For inquiries or collaborations related to this presentation, please reach out to the authors directly via the provided email addresses in AUTHORS.txt
+For inquiries or collaborations related to this presentation, please reach out to Connor Casey via the provided email addresses in AUTHORS.txt
 
 We appreciate your interest in our work!
 
 ## License
+This project is licensed under the [Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International License](https://creativecommons.org/licenses/by-nc-nd/4.0/).
 
-[Specify the license under which this project is released]
+![CC BY-NC-ND License](https://licensebuttons.net/l/by-nc-nd/4.0/88x31.png)
+
+### Summary of License Terms:
+
+- **Attribution (BY):** You must give appropriate credit, provide a link to the license, and indicate if changes were made.
+- **NonCommercial (NC):** You may not use the material for commercial purposes.
+- **NoDerivatives (ND):** If you remix, transform, or build upon the material, you may not distribute the modified material.
+
+For full license details, please refer to the [Creative Commons BY-NC-ND 4.0 License](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+
