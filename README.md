@@ -82,17 +82,142 @@ This diagram illustrates the repository structure, execution order, and data flo
 
 ## Usage
 
-To run the model:
+### Reproducing the Simulation Environment Using Docker
 
-1. Ensure all required data is present in the `data/input` folder.
-2. Add your TLE file (e.g., `terra.tle`) into the same folder as the `satellite_passes` folder.
-3. Create a `.env` file in the project root directory and add your EUMET API key as follows:
-   ```
-   EUMET_API_KEY=your_api_key_here
-   ```
-4. Fill in all necessary parameters in the `satelliteParameters.txt` file located in the `data/input` folder.
-5. Execute the scripts in the `src` folder in the order specified above.
-6. Check the `data/output` folder for results from each component.
+To ensure a consistent and reproducible environment, we've containerized the simulation using Docker. Follow the steps below to set up and run the simulation environment.
+
+#### Prerequisites:
+
+- Install [Docker](https://www.docker.com/products/docker-desktop) on your system.
+- Ensure Docker is running.
+
+#### Steps to Pull and Run the Docker Container:
+
+1. **Pull the Docker image from Docker Hub:**
+
+    ```bash
+    docker pull cocasey/fso-simulation:v1.0
+    ```
+
+2. **Run the container interactively:**
+
+    ```bash
+    docker run -it cocasey/fso-simulation:v1.0
+    ```
+
+    This command will start the container and open an interactive shell.
+
+3. **Navigate to the project directory inside the container:**
+
+    ```bash
+    cd /path/to/project
+    ```
+
+4. **Set up the environment variables:**
+
+    Create a `.env` file in the project root directory inside the container and add your EUMETSAT API keys:
+
+    ```bash
+    echo "CONSUMER_KEY=your_consumer_key_here" >> .env
+    echo "CONSUMER_SECRET=your_consumer_secret_here" >> .env
+    ```
+
+5. **Add your TLE file:**
+
+    Place your `.tle` file (e.g., `terra.tle`) into the appropriate directory inside the container:
+
+    ```bash
+    cp /host/path/to/yourfile.tle /container/path/to/satellite_passes/
+    ```
+
+    *(You may need to mount a volume or use `docker cp` to transfer files from the host to the container.)*
+
+6. **Fill in necessary parameters:**
+
+    Edit the `satelliteParameters.txt` file located in the `data/input` folder to include your specific parameters.
+
+7. **Run the simulation script:**
+
+    Execute the `run_simulation.zsh` script located in the `scripts` folder:
+
+    ```bash
+    cd scripts
+    ./run_simulation.zsh
+    ```
+
+    *Ensure the script has execute permissions. If not, you can make it executable with:*
+
+    ```bash
+    chmod +x run_simulation.zsh
+    ```
+
+8. **Check the output:**
+
+    The results will be stored in the `data/output` folder within the container.
+
+#### Exiting the Container:
+
+- To exit the interactive session, type `exit` or press `Ctrl+D`.
+
+#### Optional: Saving Your Work
+
+- If you need to save data generated within the container to your host machine, consider using Docker volumes or the `docker cp` command.
+
+#### Additional Notes:
+
+- Ensure that any changes made inside the container are saved or exported if needed, as they will not persist after the container is stopped unless volumes are used.
+
+### Traditional Setup (Without Docker)
+
+If you prefer to run the simulation without Docker, follow these steps:
+
+1. **Install Dependencies:**
+
+    - Python (version 3.9 or higher)
+    - Use `pip` to install required Python packages:
+
+      ```bash
+      pip install -r requirements.txt
+      ```
+
+2. **Prepare the Environment:**
+
+    - Add your TLE file (e.g., `terra.tle`) into the same folder as the `satellite_passes` component.
+    - Create a `.env` file in the project root directory and add your EUMETSAT API keys:
+
+      ```
+      CONSUMER_KEY=your_consumer_key_here
+      CONSUMER_SECRET=your_consumer_secret_here
+      ```
+
+    - Fill in all necessary parameters in the `satelliteParameters.txt` file located in the `data/input` folder.
+
+3. **Execute the Simulation Script:**
+
+    Run the `run_simulation.zsh` script located in the `scripts` folder:
+
+    ```bash
+    cd scripts
+    ./run_simulation.zsh
+    ```
+
+    *Ensure the script has execute permissions. If not, you can make it executable with:*
+
+    ```bash
+    chmod +x run_simulation.zsh
+    ```
+
+4. **Check the Output:**
+
+    Check the `data/output` folder for results from each component.
+
+## Dependencies
+
+- Satellite TLE data file (`.tle`)
+- Access to the EUMETSAT API gateway for cloud cover data
+- Docker (if using the Docker setup)
+- Python (version X.X or higher)
+- Required Python packages listed in `requirements.txt`
 
 ## Dependencies
 

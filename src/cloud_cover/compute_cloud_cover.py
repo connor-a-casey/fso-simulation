@@ -13,34 +13,16 @@ from tqdm import tqdm
 import concurrent.futures
 import numpy as np  # Added for array operations
 
-
-# Function to check conda environment
-# If not activated, then run the following:
-# # conda activate cfgrib_env
-def check_conda_environment(expected_env="cfgrib_env"):
-    current_env = os.getenv('CONDA_DEFAULT_ENV')
-    if current_env != expected_env:
-        print(f"Error: You are not in the expected conda environment: {expected_env}. You are currently in: {current_env}. Exiting...")
-        exit(1)
-
-# Call the function at the beginning of the script
-check_conda_environment()
-
-# Suppress specific warnings
-warnings.filterwarnings("ignore", message="dlopen")
-warnings.filterwarnings("ignore", category=FutureWarning, message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated")
-
-# Load environment variables
-load_dotenv()
-
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
 CONSUMER_KEY = os.getenv('CONSUMER_KEY')
 CONSUMER_SECRET = os.getenv('CONSUMER_SECRET')
 TOKEN_URL = "https://api.eumetsat.int/token"
 MAX_RETRIES = 10
-RAW_GRIB_STAGING = os.path.join('/Volumes/TOSHIBA EXT/cloud_staging')
+RAW_GRIB_STAGING = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover','m')
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
+
+
 
 def read_satellite_parameters(file_path):
     params = {}
@@ -262,6 +244,15 @@ def process_single_product(product_id, collection_id, datastore, station_bbox_df
 
 
 def main():
+    # Suppress specific warning
+    warnings.filterwarnings("ignore", message="dlopen")
+    warnings.filterwarnings("ignore", category=FutureWarning, message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated")
+
+    # Load environment variables
+    load_dotenv()
+
+    os.makedirs(RAW_GRIB_STAGING, exist_ok=True)
+
     params = read_satellite_parameters(os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt'))
     collection_id = 'EO:EUM:DAT:MSG:CLM'
     start_date = params['Start_time']
@@ -308,3 +299,6 @@ def main():
 
         # Save each DataFrame to a CSV file, using a comma as the separator
         df.to_csv(f"{OUTPUT_DIR}/{station_code}_eumetsat_{start_date.date()}_{end_date.date()}_detailed_df.csv", sep=',', index=False)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,8 @@
+.venv/
+assets/
+.vscode/
+AUTHORS.txt
+README.md
+.gitignore
+LICENSE.txt
+data/output

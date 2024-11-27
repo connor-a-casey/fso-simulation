@@ -2,8 +2,8 @@
 
 The following individuals have contributed significantly to the project:
 
-- [Mr. Eugene Rotherham](mailto:eugene.rotherham@gmail.com): University College London (UCL), United Kingdom
 - [Mr. Connor Casey](mailto:cacasey@umass.edu): College of Information and Computer Sciences, University of Massachusetts Amherst, United States
+- [Mr. Eugene Rotherham](mailto:eugene.rotherham@gmail.com): University College London (UCL), United Kingdom
 - [Ms. Eva Fernandez Rodriguez](mailto:00evafernandez@gmail.com): Netherlands Organisation for Applied Scientific Research (TNO), The Netherlands
 - [Ms. Karen Wendy Vidaurre Torrez](mailto:karen.vidaurre2001@gmail.com): Kyushu Institute of Technology, Japan
 - [Mr. Maren Mashor](mailto:reuben.mashor@gmail.com): National Space Research and Development Agency (NASRDA), Nigeria
