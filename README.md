@@ -220,8 +220,8 @@ If you prefer to run the simulation without Docker, follow these steps:
 - Required Python packages listed in `requirements.txt`
 
 ## Repository Contents:
-- **Paper:** [Link to published paper](https://arxiv.org/abs/2410.23470)
-- **Datasets:** [Link to datasets](https://www.dropbox.com/scl/fo/k7yug64a3rukr89p8xlmq/AH92crjcwRxoaDdJj1JSdmM?rlkey=i7putlvrf36inva68dfwipo6y&st=e0bcoyof&dl=0)
+- **Paper:** [Link to Published Paper](https://arxiv.org/abs/2410.23470)
+- **Datasets:** [Link to Datasets](https://www.dropbox.com/scl/fo/k7yug64a3rukr89p8xlmq/AH92crjcwRxoaDdJj1JSdmM?rlkey=i7putlvrf36inva68dfwipo6y&st=e0bcoyof&dl=0)
 - **Data Analysis:** [Link to Notebook](https://www.dropbox.com/scl/fo/b1rnfzf3o8bz4iplv2ql4/AL59S5MLe3bO77BnmGWxis0?rlkey=fm22cwnophj40uggofkulb1x7&st=ienm03r6&dl=0)
 
 ## Contact Information:
