@@ -225,7 +225,7 @@ If you prefer to run the simulation without Docker, follow these steps:
 - **Data Analysis:** [Link to Notebook](https://www.dropbox.com/scl/fo/b1rnfzf3o8bz4iplv2ql4/AL59S5MLe3bO77BnmGWxis0?rlkey=fm22cwnophj40uggofkulb1x7&st=ienm03r6&dl=0)
 
 ## Contact Information:
-For inquiries or collaborations related to this presentation, please reach out to Connor Casey via the provided email addresses in AUTHORS.txt
+For inquiries or collaborations related to this presentation, please reach out to Connor Casey via the provided email addresse in AUTHORS.txt
 
 We appreciate your interest in our work!
 
