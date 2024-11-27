@@ -19,7 +19,7 @@ CONSUMER_KEY = os.getenv('CONSUMER_KEY')
 CONSUMER_SECRET = os.getenv('CONSUMER_SECRET')
 TOKEN_URL = "https://api.eumetsat.int/token"
 MAX_RETRIES = 10
-RAW_GRIB_STAGING = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover','cloud_staging')
+RAW_GRIB_STAGING = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover','cloud_staging') # Change this if you do not want to store the files locally 
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'cloud_cover')
 
 
@@ -179,10 +179,9 @@ def download_products(product_id, collection_id, datastore):
 
 def process_grib_file(grib_file_path, station_bbox_df):
     try:
-        # Remove existing index file
+
         remove_index_file(grib_file_path)
 
-        # Open the GRIB file
         dataset = xr.open_dataset(grib_file_path, engine='cfgrib')
 
         # Extract time, latitude, longitude, and cloud cover data
@@ -244,11 +243,9 @@ def process_single_product(product_id, collection_id, datastore, station_bbox_df
 
 
 def main():
-    # Suppress specific warning
     warnings.filterwarnings("ignore", message="dlopen")
     warnings.filterwarnings("ignore", category=FutureWarning, message="The behavior of DataFrame concatenation with empty or all-NA entries is deprecated")
 
-    # Load environment variables
     load_dotenv()
 
     os.makedirs(RAW_GRIB_STAGING, exist_ok=True)

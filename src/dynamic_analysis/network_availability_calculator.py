@@ -41,7 +41,31 @@ def read_satellite_parameters(file_path):
                     params[key.strip()] = value.strip()
 
     params['ground_stations'] = ground_stations
-    
+
+    # Parse Start_time and End_time if they exist
+    date_format = '%Y-%m-%d'
+    if 'Start_time' in params:
+        try:
+            params['Start_time'] = datetime.strptime(params['Start_time'], date_format)
+            logger.info(f"Parsed Start_time: {params['Start_time']}")
+        except ValueError as ve:
+            logger.error(f"Error parsing Start_time: {ve}")
+            raise
+    else:
+        logger.error("Start_time not found in parameters.")
+        raise KeyError("Start_time not found in parameters.")
+
+    if 'End_time' in params:
+        try:
+            params['End_time'] = datetime.strptime(params['End_time'], date_format)
+            logger.info(f"Parsed End_time: {params['End_time']}")
+        except ValueError as ve:
+            logger.error(f"Error parsing End_time: {ve}")
+            raise
+    else:
+        logger.error("End_time not found in parameters.")
+        raise KeyError("End_time not found in parameters.")
+
     if 'Cloud_cover_percentage_threshold' in params:
         params['Cloud_cover_threshold'] = float(params['Cloud_cover_percentage_threshold']) / 100.0 * 2.0
     else:
@@ -175,15 +199,20 @@ def calculate_network_availability(start_date_str, end_date_str, params):
     return final_df
 
 def main():
-    start_date_str = '2023-06-01'
-    end_date_str = '2024-06-01'
-
     params_file_path = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt')
     if not os.path.exists(params_file_path):
         logger.error(f"Parameters file not found at {params_file_path}")
         exit(1)
 
     params = read_satellite_parameters(params_file_path)
+
+    # Extract Start_time and End_time from params
+    start_date = params['Start_time']
+    end_date = params['End_time']
+
+    # Convert datetime objects to strings in the expected format
+    start_date_str = start_date.strftime('%Y-%m-%d')
+    end_date_str = end_date.strftime('%Y-%m-%d')
 
     try:
         final_df = calculate_network_availability(start_date_str, end_date_str, params)

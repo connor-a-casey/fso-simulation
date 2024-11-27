@@ -2,11 +2,12 @@ import os
 from datetime import datetime, timedelta
 from skyfield.api import load, EarthSatellite, wgs84
 from tqdm import tqdm
+import glob
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(CURRENT_DIR)))
 PARAMS_FILE = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'input', 'satelliteParameters.txt')
-TLE_FILE = os.path.join(CURRENT_DIR, 'terra.tle')
+TLE_FILE = glob.glob(os.path.join(CURRENT_DIR, '*.tle'))[0]
 OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'IAC-2024', 'data', 'output', 'satellite_passes')
 
 def read_parameters(file_path):
@@ -16,7 +17,7 @@ def read_parameters(file_path):
             if line.strip() and not line.startswith('#'):
                 key, value = line.strip().split(':', 1)
                 params[key.strip()] = value.strip()
-    # Convert start and end time to datetime objects
+    # convert start and end time to datetime objects
     params['Start_time'] = datetime.strptime(params['Start_time'], '%Y-%m-%d')
     params['End_time'] = datetime.strptime(params['End_time'], '%Y-%m-%d')
     return params

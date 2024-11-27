@@ -67,7 +67,7 @@ The model components are executed in the following order:
 
 - Each component in the `src` folder reads data from the `satelliteParameters.txt` file in the `data/input` folder.
 - The `satellite_passes` component also uses a `.tle` (Two-Line Element) file for satellite orbit data.
-- The `cloud_cover` component interacts with an API gateway for retrieving cloud cover data.
+- The `cloud_cover` component interacts with an API gateway (EUMETSAT) for retrieving cloud cover data.
 - The `data_integrator` component pulls data from the `satellite_passes`, `turbulence`, and `cloud_cover` components.
 - The `dynamic_analysis` component uses data from both the `satelliteParameters.txt` file and the `data_integrator` component.
 
@@ -96,13 +96,13 @@ To ensure a consistent and reproducible environment, we've containerized the sim
 1. **Pull the Docker image from Docker Hub:**
 
     ```bash
-    docker pull cocasey/fso-simulation:1.0
+    docker pull cocasey/fso-simulation:1.0.1
     ```
 
 2. **Run the container interactively:**
 
     ```bash
-    docker run -it cocasey/fso-simulation:v1.0
+    docker run -it cocasey/fso-simulation:1.0.1
     ```
 
     This command will start the container and open an interactive shell.
@@ -138,11 +138,11 @@ To ensure a consistent and reproducible environment, we've containerized the sim
 
 7. **Run the simulation script:**
 
-    Execute the `run_simulation.zsh` script located in the `scripts` folder:
+    Execute the `run_simulation.zsh` script located in the `scripts` folder from the main directory:
 
     ```bash
     cd scripts
-    ./run_simulation.zsh
+    ./scripts/run_simulation.zsh
     ```
 
     *Ensure the script has execute permissions. If not, you can make it executable with:*
@@ -194,11 +194,11 @@ If you prefer to run the simulation without Docker, follow these steps:
 
 3. **Execute the Simulation Script:**
 
-    Run the `run_simulation.zsh` script located in the `scripts` folder:
+    Run the `run_simulation.zsh` script located in the `scripts` folder from the main directory:
 
     ```bash
     cd scripts
-    ./run_simulation.zsh
+    ./scripts/run_simulation.zsh
     ```
 
     *Ensure the script has execute permissions. If not, you can make it executable with:*
