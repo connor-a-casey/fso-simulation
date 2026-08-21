@@ -1,3 +1,5 @@
+
+
 <div align="center">
     <h1>
         <img src="assets/header.jpg">
@@ -153,7 +155,7 @@ To ensure a consistent and reproducible environment, we've containerized the sim
 
 8. **Check the output:**
 
-    The results will be stored in the `data/output/dynamic_analysis` folder within the container.
+    The results will be stored in the `data/output/dynamic_analysis/data_throughput` folder within the container.
 
 #### Exiting the Container:
 
@@ -241,4 +243,3 @@ This project is licensed under the [Creative Commons Attribution-NonCommercial-N
 - **NoDerivatives (ND):** If you remix, transform, or build upon the material, you may not distribute the modified material.
 
 For full license details, please refer to the [Creative Commons BY-NC-ND 4.0 License](https://creativecommons.org/licenses/by-nc-nd/4.0/).
-
